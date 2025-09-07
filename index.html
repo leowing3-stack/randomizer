@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<title>SocialBurst – Deal a Plan</title>
+
+<style>
+  @font-face {
+    font-family: "BrotherBold";
+    src: url("./SocialBurstRandomizer/fonts/BROTHER-Bold.ttf") format("truetype");
+  }
+  @font-face {
+    font-family: "Lexend";
+    src: url("./SocialBurstRandomizer/fonts/Lexend-VariableFont_wght.ttf") format("truetype");
+  }
+  @font-face {
+    font-family: "MadeTommyBold";
+    src: url("./SocialBurstRandomizer/fonts/MADE TOMMY Bold_PERSONAL USE.otf") format("opentype");
+  }
+
+  :root{
+    --purple:#8338EC;
+    --yellow:#FFEC1F;
+    --white:#ffffff;
+    --black:#000000;
+  }
+
+  body{
+    margin:0;
+    min-height:100dvh;
+    background: var(--purple);
+    color:var(--white);
+    font-family: Lexend, sans-serif;
+    overflow:hidden;
+  }
+
+  .brand-badge{
+    position:fixed; inset:18px auto auto 18px; z-index:30;
+    display:flex; align-items:center; gap:12px;
+  }
+  .brand-badge img{ width:72px; height:72px; }
+  .brand-badge .brand-name{
+    font-family: BrotherBold, sans-serif;
+    font-size:36px;
+    color:var(--yellow);
+  }
+
+  .stage{
+    position:relative;
+    height:100dvh;
+    display:flex; align-items:center; justify-content:center;
+    perspective: 1400px;
+  }
+
+  .stack{ position:relative; width:min(88vw, 660px); aspect-ratio:2/1; display:grid; place-items:center; }
+  .click-overlay{ position:absolute; inset:0; cursor:pointer; z-index:19; background:transparent; }
+
+  .envelope{
+    position:absolute; inset:0;
+    display:grid; place-items:center;
+    transform-style:preserve-3d;
+    transition: transform 0.8s ease;
+    z-index:10;
+  }
+  .is-back .envelope{ transform: rotateY(180deg); }
+
+  .env-face{
+    position:absolute; inset:0;
+    border-radius:10px;
+    background:var(--white);
+    border:1px solid var(--black);
+    display:grid; place-items:center;
+    backface-visibility:hidden;
+  }
+  .env-front{ transform: rotateY(0deg); }
+  .env-front .top-secret{
+    color:var(--purple); font-weight:800;
+    font-size: clamp(24px, 5vw, 44px);
+  }
+  .env-back{ transform: rotateY(180deg); }
+
+  .flap{
+    position:absolute; left:0; right:0; top:0;
+    height:52%;
+    transform-origin: top center;
+    /* PATCH START: allow flap to swing fully open */
+    transform: rotateX(0deg);
+    transition: transform 1s ease 0.25s;
+    /* PATCH END */
+    pointer-events:none;
+  }
+  .flap-shape{
+    margin:0 auto; width:85%; height:100%;
+    background:var(--white);
+    /* PATCH START: strong black outline */
+    border:2px solid var(--black);
+    /* PATCH END */
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+  }
+  .logo-over-flap{
+    position:absolute; top:48%; left:50%;
+    transform: translateX(-50%);
+    width: clamp(52px, 10vw, 90px); height:auto;
+  }
+  /* PATCH START: flap rotates much higher up */
+  .is-open .flap{ transform: rotateX(-180deg); }
+  /* PATCH END */
+
+  /* PATCH START: four seams on the back of the envelope */
+  .back-seams{ position:absolute; inset:0; pointer-events:none; }
+  .seam{
+    position:absolute; background:var(--black);
+    width:2px; /* thin line */
+    transform-origin: bottom center;
+  }
+  /* bottom corners up to flap tip */
+  .seam-bottom-left{  left:12px;  bottom:10px; height:66%; transform: rotate(35deg);  }
+  .seam-bottom-right{ right:12px; bottom:10px; height:66%; transform: rotate(-35deg); }
+  /* top corners down to bottom midpoint */
+  .seam-top-left{  left:12px;  top:10px; height:66%; transform-origin: top center; transform: rotate(-35deg); }
+  .seam-top-right{ right:12px; top:10px; height:66%; transform-origin: top center; transform: rotate(35deg); }
+  /* PATCH END */
+
+  .letter-wrap{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    z-index:20; pointer-events:none;
+  }
+  .letter{
+    width:min(68vw, 520px); max-height:72vh;
+    aspect-ratio:4/5;
+    background:var(--white);
+    border:1px solid var(--black);
+    border-radius:8px;
+    box-shadow:0 12px 30px rgba(0,0,0,0.25);
+    transform-origin: bottom center;
+    transform: translateY(25%) scaleY(0.5);
+    opacity:0;
+    transition: transform 0.8s ease, opacity 0.6s ease;
+    /* PATCH START: push text toward vertical center */
+    display:flex; flex-direction:column; justify-content:center;
+    padding: clamp(18px, 3.5vw, 28px);
+    gap: clamp(12px, 2vw, 20px);
+    text-align:center;
+    /* PATCH END */
+  }
+  .is-open .letter{ transform: translateY(-2%) scaleY(1); opacity:1; pointer-events:auto; }
+
+  .letter h5{ margin:0; color:var(--purple); font-weight:800; font-size:clamp(16px,3.2vw,20px); }
+  .letter .title{ margin:0; color:var(--purple); font-weight:800; font-size:clamp(22px,5.2vw,34px); }
+  .letter .venue{ margin:0; color:var(--purple); font-weight:800; font-size:clamp(16px,3.8vw,20px); opacity:0.95; }
+  .letter .more{ margin-top:10px; }
+  .letter .more a{ color:var(--yellow); text-decoration:underline; font-weight:800; }
+
+  .reset-wrap{ position:fixed; left:0; right:0; bottom:22px;
+    display:flex; justify-content:center; z-index:25;
+    opacity:0; transform:translateY(10px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events:none;
+  }
+  .show-reset .reset-wrap{ opacity:1; transform:translateY(0); pointer-events:auto; }
+  .reset-btn{ width:64px; height:64px; background:var(--yellow);
+    border-radius:999px; border:none; cursor:pointer;
+    box-shadow:0 8px 22px rgba(0,0,0,0.25);
+  }
+</style>
+</head>
+<body>
+
+<div class="brand-badge">
+  <img src="./SocialBurstRandomizer/img/logo.png" alt="logo"/>
+  <div class="brand-name">SocialBurst</div>
+</div>
+
+<main class="stage">
+  <section id="stack" class="stack">
+    <div id="clickOverlay" class="click-overlay"></div>
+
+    <div class="envelope">
+      <div class="env-face env-front"><div class="top-secret">TOP SECRET</div></div>
+      <div class="env-face env-back">
+        <!-- PATCH START: four seams on the back of the envelope -->
+        <div class="back-seams">
+          <span class="seam seam-bottom-left"></span>
+          <span class="seam seam-bottom-right"></span>
+          <span class="seam seam-top-left"></span>
+          <span class="seam seam-top-right"></span>
+        </div>
+        <!-- PATCH END -->
+        <img class="logo-over-flap" src="./SocialBurstRandomizer/img/logo.png" alt="">
+        <div class="flap"><div class="flap-shape"></div></div>
+      </div>
+    </div>
+
+    <div class="letter-wrap">
+      <article id="letter" class="letter">
+        <h5>You Are Invited To….</h5>
+        <div id="evTitle" class="title">Loading…</div>
+        <div id="evVenue" class="venue"></div>
+        <div class="more"><a id="evLink" href="#" target="_blank">Open details</a></div>
+      </article>
+    </div>
+  </section>
+</main>
+
+<div class="reset-wrap"><button id="resetBtn" class="reset-btn"></button></div>
+
+<audio id="openSfx" preload="auto">
+  <source src="./SocialBurstRandomizer/sfx/letter-open.mp3" type="audio/mpeg"/>
+</audio>
+
+<script>
+const CSV_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vQi9O78dGEZQ38WWiuMBKKNJwlp6J-yLmPP2lCjJJAHifG1YnpIPVvGt9tKdULSC4ZW9CBiIQOTOx7L/pub?gid=1474444500&single=true&output=csv";
+
+const clickOverlay=document.getElementById('clickOverlay');
+const letter=document.getElementById('letter');
+const resetBtn=document.getElementById('resetBtn');
+const openSfx=document.getElementById('openSfx');
+const evTitle=document.getElementById('evTitle');
+const evVenue=document.getElementById('evVenue');
+const evLink=document.getElementById('evLink');
+
+let events=[],isAnimating=false;
+
+function parseCSV(text){
+  const rows=text.split(/\r?\n/).filter(l=>l.trim().length);
+  const header=rows.shift().split(',').map(h=>h.trim());
+  const idx={title:header.indexOf('title'),venue:header.indexOf('venue_name'),url:header.indexOf('source_url')};
+  return rows.map(line=>{
+    const parts=line.split(",");
+    return {title:parts[idx.title]||'',venue:parts[idx.venue]||'',url:parts[idx.url]||''};
+  });
+}
+async function loadEvents(){ const res=await fetch(CSV_URL); const txt=await res.text(); events=parseCSV(txt); }
+function pickOne(){ return events.length?events[Math.floor(Math.random()*events.length)]:{title:'No events today',venue:'',url:'#'}; }
+function fillLetter(ev){ evTitle.textContent=ev.title; evVenue.textContent=ev.venue; evLink.href=ev.url; }
+
+function setStateBack(){ document.body.classList.remove('is-back','is-open','show-reset'); }
+function flipToBack(){ document.body.classList.add('is-back'); }
+function openFlapAndLetter(){ document.body.classList.add('is-open','show-reset'); }
+
+async function startSequence(){
+  if(isAnimating) return; isAnimating=true;
+  try{ await loadEvents(); }catch(e){}
+  fillLetter(pickOne());
+  flipToBack();
+  setTimeout(()=>{ openSfx.currentTime=0; openSfx.play().catch(()=>{}); },260);
+  setTimeout(()=>{ openFlapAndLetter(); setTimeout(()=>{ isAnimating=false; },1000); },700);
+}
+
+clickOverlay.addEventListener('click', startSequence);
+letter.addEventListener('click', ()=>{ if(!document.body.classList.contains('is-open')) startSequence(); });
+resetBtn.addEventListener('click', ()=>{ if(isAnimating) return; isAnimating=true;
+  document.body.classList.remove('show-reset','is-open');
+  setTimeout(()=>{ document.body.classList.remove('is-back'); setTimeout(()=>{ isAnimating=false; },450); },300);
+});
+</script>
+</body>
+</html>
