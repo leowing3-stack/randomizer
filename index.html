@@ -223,16 +223,89 @@ const evLink=document.getElementById('evLink');
 
 let events=[],isAnimating=false;
 
+/* PATCH START: also read start/end datetimes */
 function parseCSV(text){
   const rows=text.split(/\r?\n/).filter(l=>l.trim().length);
   const header=rows.shift().split(',').map(h=>h.trim());
-  const idx={title:header.indexOf('title'),venue:header.indexOf('venue_name'),url:header.indexOf('source_url')};
+  const idx={
+    title: header.indexOf('title'),
+    venue: header.indexOf('venue_name'),
+    url:   header.indexOf('source_url'),
+    start: header.indexOf('start_datetime'),
+    end:   header.indexOf('end_datetime')
+  };
   return rows.map(line=>{
     const parts=line.split(",");
-    return {title:parts[idx.title]||'',venue:parts[idx.venue]||'',url:parts[idx.url]||''};
+    return {
+      title: parts[idx.title]||'',
+      venue: parts[idx.venue]||'',
+      url:   parts[idx.url]||'',
+      start_datetime: parts[idx.start]||'',
+      end_datetime:   parts[idx.end]||''
+    };
   });
 }
-async function loadEvents(){ const res=await fetch(CSV_URL); const txt=await res.text(); events=parseCSV(txt); }
+/* PATCH END */
+
+/* PATCH START: parse “10:00 am  8/9” (or “00:00  14/9”) into a Date (this year, local) */
+function parseDMYTime(str){
+  const s=(str||'').toLowerCase().replace(/\u00a0|\u202f/g,' ').trim();
+  if(!s) return null;
+  // matches: HH[:MM] [am|pm] DD/MM
+  const m=s.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?\s+(\d{1,2})\/(\d{1,2})$/i);
+  if(!m) return null;
+  let hh=parseInt(m[1],10);
+  const mm=m[2]?parseInt(m[2],10):0;
+  const ap=(m[3]||'').replace(/\./g,'').toLowerCase(); // "am","pm",""
+  const d=parseInt(m[4],10), mo=parseInt(m[5],10);
+  const year=(new Date()).getFullYear();
+  if(ap==='pm' && hh<12) hh+=12;
+  if(ap==='am' && hh===12) hh=0;
+  const dt=new Date(year, mo-1, d, hh, mm, 0, 0);
+  return isNaN(dt)?null:dt;
+}
+function isActiveToday(ev, now){
+  const s=parseDMYTime(ev.start_datetime);
+  let   e=parseDMYTime(ev.end_datetime);
+  if(!s && !e) return false;
+
+  // Event is "today" only if either start OR end date is today
+  const sameDay = (a,b)=>a && b &&
+    a.getFullYear()===b.getFullYear() &&
+    a.getMonth()===b.getMonth() &&
+    a.getDate()===b.getDate();
+
+  const isStartToday = s && sameDay(s, now);
+  const isEndToday   = e && sameDay(e, now);
+  if(!isStartToday && !isEndToday) return false;
+
+  // Default a missing end to +2h from start
+  if(s && !e) e = new Date(s.getTime()+2*60*60*1000);
+
+  // If start is today but end is not today (multi-day),
+  // clamp its effective end to end-of-today so it disappears after midnight.
+  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23,59,59,999);
+  const effectiveEnd = (isEndToday && e) ? e : endOfToday;
+
+  // Keep only if it hasn't finished yet (strictly after "now")
+  return effectiveEnd > now;
+}
+/* PATCH END */
+
+async function loadEvents(){
+  const res=await fetch(CSV_URL);
+  const txt=await res.text();
+  events=parseCSV(txt);
+
+  /* PATCH START: only keep items that are still active TODAY (not finished yet) */
+  const now=new Date();
+  events=events.filter(ev=>isActiveToday(ev, now));
+  if(events.length===0){
+    events=[{title:'No events left today', venue:'', url:'#'}];
+  }
+  /* PATCH END */
+}
+
 function pickOne(){ return events.length?events[Math.floor(Math.random()*events.length)]:{title:'No events today',venue:'',url:'#'}; }
 function fillLetter(ev){ evTitle.textContent=ev.title; evVenue.textContent=ev.venue; evLink.href=ev.url; }
 
