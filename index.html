@@ -190,19 +190,26 @@
     font-size:28px; font-weight:bold; color:var(--black);
     line-height:1; display:flex; align-items:center; justify-content:center;
   }
-/* --- Mobile fix: keep brand text from overlapping the logo --- */
+
+/* --- Mobile layout tweak --- */
 @media (max-width: 600px) {
-  /* leave the logo size alone; change only the text position & size */
-  .brand-badge .brand-name{
-    /* center horizontally, already fixed-positioned in your CSS */
+  /* nudge logo left */
+  .brand-badge img {
+    margin-left: -20px; /* adjust as needed */
+  }
+
+  /* center Social Burst text and align its vertical middle with logo */
+  .brand-badge .brand-name {
     left: 50%;
     transform: translateX(-50%);
-    /* push the text BELOW the logo (logo is 216px tall in your current CSS) */
-    top: calc(var(--safe-area-top) + 216px + 10px);
-    /* scale text so it fits on small screens */
+    top: calc(var(--safe-area-top) + 108px - 36px); /* logo center (216/2=108), minus half text height (~36px) */
     font-size: clamp(28px, 9vw, 48px);
     line-height: 1.05;
   }
+}
+
+
+
 }
 
 </style>
