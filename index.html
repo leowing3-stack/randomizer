@@ -191,24 +191,33 @@
     line-height:1; display:flex; align-items:center; justify-content:center;
   }
 
-/* --- Mobile layout tweak --- */
+/* --- Mobile layout: logo centered at top, text below --- */
 @media (max-width: 600px) {
+  .brand-badge {
+    position: absolute;
+    top: var(--safe-area-top);
+    left: 50%;
+    transform: translateX(-50%);
+    flex-direction: column;
+    align-items: center;
+    gap: 8px; /* spacing between logo and text */
+  }
+
   .brand-badge img {
-    margin-left: -10px; /* keep logo slightly left */
+    width: 180px;  /* keep size consistent with your current settings */
+    height: 180px;
+    margin: 0 auto;
   }
 
   .brand-badge .brand-name {
-    position: absolute;
-    top: calc(var(--safe-area-top) + 50%);   /* lock to logo vertical center */
-    left: calc(50% + 70px);                 /* shift right so text clears logo */
-    transform: translate(-50%, -50%);       /* true centering */
+    position: static;   /* reset fixed/absolute positioning */
+    transform: none;
     font-size: clamp(28px, 9vw, 48px);
-    line-height: 1.05;
+    line-height: 1.1;
+    text-align: center;
     white-space: nowrap;
   }
 }
-
-
 }
 
 </style>
