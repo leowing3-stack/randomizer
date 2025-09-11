@@ -4,26 +4,24 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
 <title>SocialBurst – Deal a Plan</title>
+<link rel="preconnect" href="https://docs.google.com" crossorigin>
+<link rel="preconnect" href="https://lh3.googleusercontent.com" crossorigin>
+
+
 
 <style>
-  @font-face {
-    font-family: "BrotherBold";
-    src: url("./SocialBurstRandomizer/fonts/BROTHER-Bold.ttf") format("truetype");
-  }
-  @font-face {
-    font-family: "Lexend";
-    src: url("./SocialBurstRandomizer/fonts/Lexend-VariableFont_wght.ttf") format("truetype");
-  }
-  @font-face {
-    font-family: "MadeTommyBold";
-    src: url("./SocialBurstRandomizer/fonts/MADE TOMMY Bold_PERSONAL USE.otf") format("opentype");
-  }
+  @font-face { font-family: "BrotherBold"; src: url("./SocialBurstRandomizer/fonts/BROTHER-Bold.ttf") format("truetype"); }
+  @font-face { font-family: "Lexend"; src: url("./SocialBurstRandomizer/fonts/Lexend-VariableFont_wght.ttf") format("truetype"); }
+  @font-face { font-family: "MadeTommyBold"; src: url("./SocialBurstRandomizer/fonts/MADE TOMMY Bold_PERSONAL USE.otf") format("opentype"); }
 
   :root{
     --purple:#8338EC;
     --yellow:#FFEC1F;
     --white:#ffffff;
     --black:#000000;
+    --safe-area-top: env(safe-area-inset-top, 18px);
+    --safe-area-left: env(safe-area-inset-left, 18px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 22px);
   }
 
   body{
@@ -36,21 +34,33 @@
   }
 
   .brand-badge{
-    position:fixed; inset:18px auto auto 18px; z-index:30;
+    position:fixed;
+    top: var(--safe-area-top);
+    left: var(--safe-area-left);
+    z-index:30;
     display:flex; align-items:center; gap:12px;
   }
-  .brand-badge img{ width:72px; height:72px; }
-  .brand-badge .brand-name{
-    font-family: BrotherBold, sans-serif;
-    font-size:36px;
-    color:var(--yellow);
-  }
+.brand-badge img {
+  width:216px;
+  height:216px;
+}
+
+.brand-badge .brand-name{
+  font-family: BrotherBold, sans-serif;
+  font-size:36px;
+  color:var(--yellow);
+  opacity:1;
+  transition: opacity .45s ease;
+}
+.is-open .brand-badge .brand-name{ opacity:0; }
+
+ .fade-out { opacity: 0; } /* added */
 
   .stage{
     position:relative;
     height:100dvh;
     display:flex; align-items:center; justify-content:center;
-    perspective: 1400px;
+    perspective: 1600px;
   }
 
   .stack{ position:relative; width:min(88vw, 660px); aspect-ratio:2/1; display:grid; place-items:center; }
@@ -78,50 +88,64 @@
     color:var(--purple); font-weight:800;
     font-size: clamp(24px, 5vw, 44px);
   }
-  .env-back{ transform: rotateY(180deg); }
 
-  .flap{
+  /* ===== BACK with true triangular flap (SVG) ===== */
+  .env-back{
+    transform: rotateY(180deg);
+    transform-style: preserve-3d;
+    overflow:hidden; /* keep contents within the rounded rectangle */
+  }
+
+  /* white envelope card behind the flap */
+  .env-back .back-body{
+    position:absolute; inset:0;
+    background: var(--white);
+    border-radius:10px;
+    box-shadow: inset 0 0 0 1px var(--black);
+    z-index:1;
+  }
+
+  /* hinge container for the flap (top edge) */
+  .flap3d{
     position:absolute; left:0; right:0; top:0;
-    height:52%;
-    transform-origin: top center;
-    /* PATCH START: allow flap to swing fully open */
+    height:50%;                    /* tip reaches half the envelope */
+    transform-origin: top center;  /* hinge along the top edge */
     transform: rotateX(0deg);
-    transition: transform 1s ease 0.25s;
-    /* PATCH END */
+    transition: transform 0.9s ease 0.15s;
+    will-change: transform;
+    z-index:15;                    /* above body, below letter */
+    transform-style: preserve-3d;
+    backface-visibility: visible;  /* keep visible when flipped */
     pointer-events:none;
   }
-  .flap-shape{
-    margin:0 auto; width:85%; height:100%;
-    background:var(--white);
-    /* PATCH START: strong black outline */
-    border:2px solid var(--black);
-    /* PATCH END */
-    clip-path: polygon(0 0, 100% 0, 50% 100%);
-  }
-  .logo-over-flap{
-    position:absolute; top:48%; left:50%;
-    transform: translateX(-50%);
-    width: clamp(52px, 10vw, 90px); height:auto;
-  }
-  /* PATCH START: flap rotates much higher up */
-  .is-open .flap{ transform: rotateX(-180deg); }
-  /* PATCH END */
 
-  /* PATCH START: four seams on the back of the envelope */
-  .back-seams{ position:absolute; inset:0; pointer-events:none; }
-  .seam{
-    position:absolute; background:var(--black);
-    width:2px; /* thin line */
-    transform-origin: bottom center;
+  /* the actual triangle */
+  .flap-svg{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    display:block;
   }
-  /* bottom corners up to flap tip */
-  .seam-bottom-left{  left:12px;  bottom:10px; height:66%; transform: rotate(35deg);  }
-  .seam-bottom-right{ right:12px; bottom:10px; height:66%; transform: rotate(-35deg); }
-  /* top corners down to bottom midpoint */
-  .seam-top-left{  left:12px;  top:10px; height:66%; transform-origin: top center; transform: rotate(-35deg); }
-  .seam-top-right{ right:12px; top:10px; height:66%; transform-origin: top center; transform: rotate(35deg); }
-  /* PATCH END */
+  .flap-tri{
+    fill: var(--white);
+    stroke: var(--black);
+    stroke-width: 2.5;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
 
+  /* faint fixed seam right under the flap */
+  .back-top-guide{
+    position:absolute; left:2%; right:2%; top:1%;
+    height:0; border-top:2px solid rgba(0,0,0,0.18);
+    z-index:2; pointer-events:none;
+  }
+
+  /* open state: flip flap up */
+  .is-open .flap3d{
+    transform: rotateX(-175deg);
+  }
+
+  /* ===== Letter & reset (unchanged) ===== */
   .letter-wrap{
     position:absolute; inset:0;
     display:flex; align-items:center; justify-content:center;
@@ -138,14 +162,16 @@
     transform: translateY(25%) scaleY(0.5);
     opacity:0;
     transition: transform 0.8s ease, opacity 0.6s ease;
-    /* PATCH START: push text toward vertical center */
     display:flex; flex-direction:column; justify-content:center;
     padding: clamp(18px, 3.5vw, 28px);
     gap: clamp(12px, 2vw, 20px);
     text-align:center;
-    /* PATCH END */
   }
-  .is-open .letter{ transform: translateY(-2%) scaleY(1); opacity:1; pointer-events:auto; }
+  .is-open .letter{
+    transform: translateY(calc(-1 * var(--safe-area-top) / 2)) scaleY(1);
+    opacity:1;
+    pointer-events:auto;
+  }
 
   .letter h5{ margin:0; color:var(--purple); font-weight:800; font-size:clamp(16px,3.2vw,20px); }
   .letter .title{ margin:0; color:var(--purple); font-weight:800; font-size:clamp(22px,5.2vw,34px); }
@@ -153,23 +179,28 @@
   .letter .more{ margin-top:10px; }
   .letter .more a{ color:var(--yellow); text-decoration:underline; font-weight:800; }
 
-  .reset-wrap{ position:fixed; left:0; right:0; bottom:22px;
+  .reset-wrap{
+    position:fixed; left:0; right:0; bottom: var(--safe-area-bottom);
     display:flex; justify-content:center; z-index:25;
     opacity:0; transform:translateY(10px);
     transition: opacity 0.25s ease, transform 0.25s ease;
     pointer-events:none;
   }
   .show-reset .reset-wrap{ opacity:1; transform:translateY(0); pointer-events:auto; }
-  .reset-btn{ width:64px; height:64px; background:var(--yellow);
-    border-radius:999px; border:none; cursor:pointer;
-    box-shadow:0 8px 22px rgba(0,0,0,0.25);
-  }
+.reset-btn{ 
+  width:64px; height:64px; background:var(--yellow);
+  border-radius:999px; border:none; cursor:pointer;
+  box-shadow:0 8px 22px rgba(0,0,0,0.25);
+  font-size:28px; font-weight:bold; color:var(--black);
+  line-height:1; display:flex; align-items:center; justify-content:center;
+}
+
 </style>
 </head>
 <body>
 
 <div class="brand-badge">
-  <img src="./SocialBurstRandomizer/img/logo.png" alt="logo"/>
+  <img src="./SocialBurstRandomizer/img/logo-nobg.png?v=2" alt="logo"/>
   <div class="brand-name">SocialBurst</div>
 </div>
 
@@ -178,18 +209,24 @@
     <div id="clickOverlay" class="click-overlay"></div>
 
     <div class="envelope">
-      <div class="env-face env-front"><div class="top-secret">TOP SECRET</div></div>
+<div class="env-face env-front">
+  <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;">
+    <div class="top-secret" style="margin:0;">TOP SECRET</div>
+    <div class="subtitle" style="color:#8338EC; font-weight:700; font-size:clamp(18px,4vw,26px); margin:0;">Events Happening Today</div>
+  </div>
+</div>
+
+      <!-- BACK: white body + guide + hinged triangular flap -->
       <div class="env-face env-back">
-        <!-- PATCH START: four seams on the back of the envelope -->
-        <div class="back-seams">
-          <span class="seam seam-bottom-left"></span>
-          <span class="seam seam-bottom-right"></span>
-          <span class="seam seam-top-left"></span>
-          <span class="seam seam-top-right"></span>
+        <div class="back-body"></div>
+        <div class="back-top-guide"></div>
+
+        <div class="flap3d" aria-hidden="true">
+          <svg class="flap-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <!-- exact triangle: top-left -> top-right -> center-bottom -->
+            <polygon class="flap-tri" points="0,0 100,0 50,100"></polygon>
+          </svg>
         </div>
-        <!-- PATCH END -->
-        <img class="logo-over-flap" src="./SocialBurstRandomizer/img/logo.png" alt="">
-        <div class="flap"><div class="flap-shape"></div></div>
       </div>
     </div>
 
@@ -198,13 +235,15 @@
         <h5>You Are Invited To….</h5>
         <div id="evTitle" class="title">Loading…</div>
         <div id="evVenue" class="venue"></div>
-        <div class="more"><a id="evLink" href="#" target="_blank">Open details</a></div>
+        <div class="more"><a id="evLink" href="#" target="_blank" rel="noopener noreferrer">Open details</a></div>
       </article>
     </div>
   </section>
 </main>
 
-<div class="reset-wrap"><button id="resetBtn" class="reset-btn"></button></div>
+<div class="reset-wrap">
+  <button id="resetBtn" class="reset-btn" aria-label="Reset animation">&#8592;</button>
+</div>
 
 <audio id="openSfx" preload="auto">
   <source src="./SocialBurstRandomizer/sfx/letter-open.mp3" type="audio/mpeg"/>
@@ -223,9 +262,9 @@ const evLink=document.getElementById('evLink');
 
 let events=[],isAnimating=false;
 
-/* PATCH START: also read start/end datetimes */
 function parseCSV(text){
   const rows=text.split(/\r?\n/).filter(l=>l.trim().length);
+  if (rows.length < 1) return [];
   const header=rows.shift().split(',').map(h=>h.trim());
   const idx={
     title: header.indexOf('title'),
@@ -245,18 +284,15 @@ function parseCSV(text){
     };
   });
 }
-/* PATCH END */
 
-/* PATCH START: parse “10:00 am  8/9” (or “00:00  14/9”) into a Date (this year, local) */
 function parseDMYTime(str){
   const s=(str||'').toLowerCase().replace(/\u00a0|\u202f/g,' ').trim();
   if(!s) return null;
-  // matches: HH[:MM] [am|pm] DD/MM
   const m=s.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?\s+(\d{1,2})\/(\d{1,2})$/i);
   if(!m) return null;
   let hh=parseInt(m[1],10);
   const mm=m[2]?parseInt(m[2],10):0;
-  const ap=(m[3]||'').replace(/\./g,'').toLowerCase(); // "am","pm",""
+  const ap=(m[3]||'').replace(/\./g,'').toLowerCase();
   const d=parseInt(m[4],10), mo=parseInt(m[5],10);
   const year=(new Date()).getFullYear();
   if(ap==='pm' && hh<12) hh+=12;
@@ -269,7 +305,6 @@ function isActiveToday(ev, now){
   let   e=parseDMYTime(ev.end_datetime);
   if(!s && !e) return false;
 
-  // Event is "today" only if either start OR end date is today
   const sameDay = (a,b)=>a && b &&
     a.getFullYear()===b.getFullYear() &&
     a.getMonth()===b.getMonth() &&
@@ -279,31 +314,30 @@ function isActiveToday(ev, now){
   const isEndToday   = e && sameDay(e, now);
   if(!isStartToday && !isEndToday) return false;
 
-  // Default a missing end to +2h from start
   if(s && !e) e = new Date(s.getTime()+2*60*60*1000);
 
-  // If start is today but end is not today (multi-day),
-  // clamp its effective end to end-of-today so it disappears after midnight.
   const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23,59,59,999);
   const effectiveEnd = (isEndToday && e) ? e : endOfToday;
 
-  // Keep only if it hasn't finished yet (strictly after "now")
   return effectiveEnd > now;
 }
-/* PATCH END */
 
 async function loadEvents(){
-  const res=await fetch(CSV_URL);
-  const txt=await res.text();
-  events=parseCSV(txt);
+  try {
+    const res=await fetch(CSV_URL);
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    const txt=await res.text();
+    const allEvents = parseCSV(txt);
 
-  /* PATCH START: only keep items that are still active TODAY (not finished yet) */
-  const now=new Date();
-  events=events.filter(ev=>isActiveToday(ev, now));
-  if(events.length===0){
-    events=[{title:'No events left today', venue:'', url:'#'}];
+    const now=new Date();
+    events=allEvents.filter(ev=>isActiveToday(ev, now));
+    if(events.length===0){
+      events=[{title:'No events left today', venue:'', url:'#'}];
+    }
+  } catch(e) {
+    console.error("Failed to load events:", e);
+    events=[{title:'Could not load events', venue:'Please check connection', url:'#'}];
   }
-  /* PATCH END */
 }
 
 function pickOne(){ return events.length?events[Math.floor(Math.random()*events.length)]:{title:'No events today',venue:'',url:'#'}; }
@@ -313,20 +347,77 @@ function setStateBack(){ document.body.classList.remove('is-back','is-open','sho
 function flipToBack(){ document.body.classList.add('is-back'); }
 function openFlapAndLetter(){ document.body.classList.add('is-open','show-reset'); }
 
+// Kick off a background preload when the page loads
+window.addEventListener('load', () => {
+  // fire and forget; ignore failures
+  loadEvents().catch(()=>{});
+});
+
+// Return quickly if we already have events, otherwise race the fetch with a short timeout
+async function getEventsFast(timeoutMs = 600) {
+  if (events && events.length) return events;
+
+  // ensure a single in-flight fetch
+  if (!getEventsFast._promise) {
+    getEventsFast._promise = (async () => {
+      await loadEvents();
+      return events;
+    })().finally(() => { /* keep promise for late awaiters */ });
+  }
+
+  // race: either events arrive, or we hit the timeout
+  const winner = await Promise.race([
+    getEventsFast._promise,
+    new Promise(res => setTimeout(() => res(null), timeoutMs))
+  ]);
+  return winner; // null means "not ready yet"
+}
+
 async function startSequence(){
-  if(isAnimating) return; isAnimating=true;
-  try{ await loadEvents(); }catch(e){}
-  fillLetter(pickOne());
+  if (isAnimating) return;
+  isAnimating = true;
+
+  // Try to get events quickly; if not ready, we’ll show placeholders and update later
+  const fast = await getEventsFast(600);
+  if (fast) {
+    fillLetter(pickOne());
+  } else {
+    evTitle.textContent = 'Loading…';
+    evVenue.textContent = '';
+    evLink.removeAttribute('href');
+  }
+
+  // Start the animation immediately (no waiting on network)
   flipToBack();
   setTimeout(()=>{ openSfx.currentTime=0; openSfx.play().catch(()=>{}); },260);
-  setTimeout(()=>{ openFlapAndLetter(); setTimeout(()=>{ isAnimating=false; },1000); },700);
+  setTimeout(()=>{
+    openFlapAndLetter();
+    setTimeout(()=>{ isAnimating = false; }, 1000);
+  }, 700);
+
+  // If we didn’t have events yet, finish filling once the fetch completes
+  if (!fast) {
+    try {
+      await getEventsFast._promise; // waits for the background fetch
+      fillLetter(pickOne());
+    } catch(e) {
+      // leave the placeholder if it failed
+    }
+  }
 }
 
 clickOverlay.addEventListener('click', startSequence);
 letter.addEventListener('click', ()=>{ if(!document.body.classList.contains('is-open')) startSequence(); });
-resetBtn.addEventListener('click', ()=>{ if(isAnimating) return; isAnimating=true;
+resetBtn.addEventListener('click', ()=>{ 
+  if(isAnimating) return; 
+  isAnimating=true;
   document.body.classList.remove('show-reset','is-open');
-  setTimeout(()=>{ document.body.classList.remove('is-back'); setTimeout(()=>{ isAnimating=false; },450); },300);
+  setTimeout(()=>{ 
+    document.body.classList.remove('is-back'); 
+    // bring the brand text back for the next run
+    document.querySelector('.brand-badge .brand-name')?.classList.remove('fade-out');
+    setTimeout(()=>{ isAnimating=false; },450); 
+  },300);
 });
 </script>
 </body>
