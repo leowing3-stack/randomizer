@@ -193,21 +193,20 @@
 
 /* --- Mobile layout tweak --- */
 @media (max-width: 600px) {
-  /* nudge logo left */
   .brand-badge img {
-    margin-left: -20px; /* adjust as needed */
+    margin-left: -10px; /* keep logo slightly left */
   }
 
-  /* center Social Burst text and align its vertical middle with logo */
   .brand-badge .brand-name {
-    left: 50%;
-    transform: translateX(-50%);
-    top: calc(var(--safe-area-top) + 108px - 36px); /* logo center (216/2=108), minus half text height (~36px) */
+    position: absolute;
+    top: calc(var(--safe-area-top) + 50%);   /* lock to logo vertical center */
+    left: calc(50% + 70px);                 /* shift right so text clears logo */
+    transform: translate(-50%, -50%);       /* true centering */
     font-size: clamp(28px, 9vw, 48px);
     line-height: 1.05;
+    white-space: nowrap;
   }
 }
-
 
 
 }
