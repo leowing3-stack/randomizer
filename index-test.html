@@ -43,15 +43,14 @@
     height:216px;
   }
 
-  /* CHANGED: align text center with logo center, and set Social/Burst fonts */
+  /* align text center with logo center, and set Social/Burst fonts */
   .brand-badge .brand-name{
     position:fixed;
-    /* logo center (216/2=108) minus half text height (72/2=36) */
     top: calc(var(--safe-area-top) + 108px - 36px);
     left:50%;
     transform: translateX(-50%);
     z-index:31;
-    font-size:72px; /* unchanged */
+    font-size:72px;
     line-height:1;
     opacity:1;
     transition: opacity .45s ease;
@@ -70,7 +69,7 @@
     perspective: 1600px;
   }
 
-  /* NEW: two-column layout while preserving your .stage styles */
+  /* two-column layout */
   .stage.grid-2{
     display:grid;
     grid-template-columns: 1fr 1fr;
@@ -80,7 +79,15 @@
     height:100dvh;
   }
 
-  .stack{ position:relative; width:min(88vw, 660px); aspect-ratio:2/1; display:grid; place-items:center; }
+  /* Shrink each envelope to ~3/4 size so two fit side-by-side */
+  .stack{
+    position:relative;
+    width:min(44vw, 495px); /* was min(88vw, 660px) → ~0.75 */
+    aspect-ratio:2/1;
+    display:grid; place-items:center;
+    transition: transform .45s ease, grid-column .45s ease, z-index .2s ease, opacity .3s ease, visibility .3s ease;
+  }
+
   .click-overlay{ position:absolute; inset:0; cursor:pointer; z-index:19; background:transparent; }
 
   .envelope{
@@ -201,16 +208,20 @@
     line-height:1; display:flex; align-items:center; justify-content:center;
   }
 
-  /* Center the opened card (spans both columns) without changing your visuals */
-  .stage.grid-2 .stack{
-    transition: transform .45s ease, grid-column .45s ease, z-index .2s ease;
-  }
+  /* Center the opened card (spans both columns) */
   .stage.grid-2 .stack.is-open-centered{
     grid-column: 1 / -1;
     z-index: 22;
   }
 
-  /* --- Mobile layout: logo centered at top, text below --- */
+  /* Hide the other card entirely when one is open */
+  .stage.grid-2 .stack.is-hidden{
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+  }
+
+  /* Mobile adjustments */
   @media (max-width: 860px) {
     .stage.grid-2{
       grid-template-columns: 1fr;
@@ -218,9 +229,8 @@
       min-height:100dvh;
       padding-block: clamp(16px, 5vw, 28px);
     }
-    .stage.grid-2 .stack.is-open-centered{
-      grid-column: 1;
-    }
+    .stage.grid-2 .stack{ width:min(88vw, 560px); } /* give it a bit more width when stacked */
+    .stage.grid-2 .stack.is-open-centered{ grid-column: 1; }
   }
 
   @media (max-width: 600px) {
@@ -344,11 +354,11 @@ const CSV_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vQi9O78dGEZQ38WWi
 const cardEvents = document.getElementById('cardEvents');
 const cardDeals  = document.getElementById('cardDeals');
 
-const clickOverlay     = document.getElementById('clickOverlay');
-const clickOverlayDeals= document.getElementById('clickOverlayDeals');
+const clickOverlay      = document.getElementById('clickOverlay');
+const clickOverlayDeals = document.getElementById('clickOverlayDeals');
 
-const letter   = document.getElementById('letter');
-const letterD  = document.getElementById('letterDeals');
+const letter  = document.getElementById('letter');
+const letterD = document.getElementById('letterDeals');
 
 const resetBtn = document.getElementById('resetBtn');
 const openSfx  = document.getElementById('openSfx');
@@ -366,7 +376,7 @@ let events  = [];
 let deals   = [];
 let isAnimating = false;
 
-/* === CSV parsing (adds category support; everything else unchanged) === */
+/* === CSV parsing (adds category support) === */
 function parseCSV(text){
   const rows=text.split(/\r?\n/).filter(l=>l.trim().length);
   if (rows.length < 1) return [];
@@ -377,7 +387,7 @@ function parseCSV(text){
     url:   header.indexOf('source_url'),
     start: header.indexOf('start_datetime'),
     end:   header.indexOf('end_datetime'),
-    cat:   header.indexOf('category') /* NEW: category column */
+    cat:   header.indexOf('category')
   };
   return rows.map(line=>{
     const parts=line.split(",");
@@ -433,7 +443,7 @@ function isActiveToday(ev, now){
 function normCat(c){
   return (c||'').toLowerCase().replace(/[\s\-]+/g,'_').trim();
 }
-const EVENT_OK = new Set(['community','live_music','pub_quiz']); // supports "live music"/"pub quiz" via normCat()
+const EVENT_OK = new Set(['community','live_music','pub_quiz']);
 
 /* === Load & split rows once; then filter into events/deals === */
 async function loadRows(){
@@ -459,18 +469,20 @@ function pickOne(list){ return list.length ? list[Math.floor(Math.random()*list.
 function fillLetter(ev){ evTitle.textContent=ev.title; evVenue.textContent=ev.venue; evLink.href=ev.url; }
 function fillLetterDeals(ev){ dealTitle.textContent=ev.title; dealVenue.textContent=ev.venue; dealLink.href=ev.url; }
 
-/* === Scoped state (open one at a time, center when open) === */
+/* === Scoped state (open one at a time, center when open, hide the other) === */
 function resetBothInstant(){
-  cardEvents.classList.remove('is-back','is-open','is-open-centered');
-  cardDeals.classList.remove('is-back','is-open','is-open-centered');
+  cardEvents.classList.remove('is-back','is-open','is-open-centered','is-hidden');
+  cardDeals.classList.remove('is-back','is-open','is-open-centered','is-hidden');
   document.body.classList.remove('show-reset','is-open');
 }
 function openCard(cardEl){
-  // Close the other card if open
   const other = (cardEl===cardEvents) ? cardDeals : cardEvents;
+
+  // Hide the other card completely
+  other.classList.add('is-hidden');
   other.classList.remove('is-back','is-open','is-open-centered');
 
-  // Body class for legacy brand fade (unchanged behaviour)
+  // Body class for legacy brand fade
   document.body.classList.add('is-open','show-reset');
 
   // Flip and center the chosen card
@@ -479,7 +491,7 @@ function openCard(cardEl){
   setTimeout(()=>{ cardEl.classList.add('is-open-centered'); }, 100);
 }
 
-/* === Progressive loading (keep your fast-first render idea) === */
+/* === Progressive loading === */
 let loadPromise = null;
 async function ensureLoaded(){
   if (!loadPromise){
@@ -489,21 +501,17 @@ async function ensureLoaded(){
 }
 window.addEventListener('load', ()=>{ ensureLoaded().catch(()=>{}); });
 
-/* === Click flows (left/right) preserving your timings & sfx === */
+/* === Click flows (left/right) === */
 async function startEvents(){
   if (isAnimating) return; isAnimating = true;
 
-  // Try quick: if we already have rows, show immediately
   if (events && events.length){ fillLetter(pickOne(events)); }
   else { evTitle.textContent='Loading…'; evVenue.textContent=''; evLink.removeAttribute('href'); }
 
   openCard(cardEvents);
   setTimeout(()=>{ openSfx.currentTime=0; openSfx.play().catch(()=>{}); },260);
-
-  // Finish animation then allow next
   setTimeout(()=>{ isAnimating=false; }, 1000);
 
-  // If we didn’t have data yet, fill once loaded
   if (!events || !events.length){
     try { await ensureLoaded(); fillLetter(pickOne(events)); } catch(e){}
   }
@@ -524,7 +532,7 @@ async function startDeals(){
   }
 }
 
-/* === Event bindings (mirrors your original) === */
+/* === Event bindings === */
 clickOverlay.addEventListener('click', startEvents);
 clickOverlayDeals.addEventListener('click', startDeals);
 
