@@ -84,7 +84,14 @@
     width:min(44vw, 495px);
     aspect-ratio:2/1;
     display:grid; place-items:center;
-    transition: transform .45s ease, grid-column .45s ease, z-index .2s ease, opacity .3s ease, visibility .3s ease, top .45s ease, left .45s ease;
+    transition:
+      transform .45s ease,
+      grid-column .45s ease,
+      z-index .2s ease,
+      opacity .3s ease,
+      visibility .3s ease,
+      top .45s ease,
+      left .45s ease;
   }
 
   .click-overlay{ position:absolute; inset:0; cursor:pointer; z-index:19; background:transparent; }
@@ -207,17 +214,17 @@
     line-height:1; display:flex; align-items:center; justify-content:center;
   }
 
-  /* Center the opened card at exact middle of the page */
-  .stage.grid-2 .stack.is-open-centered{
-    position: fixed;        /* take it out of the grid flow */
+  /* NEW: centering step BEFORE flip */
+  .stage.grid-2 .stack.to-center{
+    position: fixed;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%); /* true center of viewport */
-    grid-column: 1 / -1;    /* harmless while fixed; keeps previous behavior intact */
+    transform: translate(-50%, -50%); /* true viewport center */
+    grid-column: 1 / -1;
     z-index: 22;
   }
 
-  /* Hide the other card entirely when one is open */
+  /* Keep other card hidden while one is open/centering */
   .stage.grid-2 .stack.is-hidden{
     opacity:0;
     visibility:hidden;
@@ -233,7 +240,7 @@
       padding-block: clamp(16px, 5vw, 28px);
     }
     .stage.grid-2 .stack{ width:min(88vw, 560px); }
-    .stage.grid-2 .stack.is-open-centered{
+    .stage.grid-2 .stack.to-center{
       position: fixed;
       top: 50%;
       left: 50%;
@@ -478,29 +485,29 @@ function pickOne(list){ return list.length ? list[Math.floor(Math.random()*list.
 function fillLetter(ev){ evTitle.textContent=ev.title; evVenue.textContent=ev.venue; evLink.href=ev.url; }
 function fillLetterDeals(ev){ dealTitle.textContent=ev.title; dealVenue.textContent=ev.venue; dealLink.href=ev.url; }
 
-/* === Scoped state (open one at a time, center when open, hide the other) === */
+/* === Reset / common === */
 function resetBothInstant(){
-  cardEvents.classList.remove('is-back','is-open','is-open-centered','is-hidden');
-  cardDeals.classList.remove('is-back','is-open','is-open-centered','is-hidden');
+  cardEvents.classList.remove('is-back','is-open','is-hidden','to-center');
+  cardDeals.classList.remove('is-back','is-open','is-hidden','to-center');
   document.body.classList.remove('show-reset','is-open');
 }
-function openCard(cardEl){
-  const other = (cardEl===cardEvents) ? cardDeals : cardEvents;
 
-  // Hide the other card completely
-  other.classList.add('is-hidden');
-  other.classList.remove('is-back','is-open','is-open-centered');
+/* === New sequence: center first, THEN flip+open === */
+function centerThenOpen(cardEl, afterCentered){
+  // move to center
+  cardEl.classList.add('to-center');
 
-  // Body class for legacy brand fade
-  document.body.classList.add('is-open','show-reset');
-
-  // Flip and center the chosen card
-  cardEl.classList.add('is-back');
-  setTimeout(()=>{ cardEl.classList.add('is-open'); }, 20);
-  setTimeout(()=>{ cardEl.classList.add('is-open-centered'); }, 100);
+  // wait until this element's own transform/top/left transition ends
+  const onEnd = (e)=>{
+    if (e.target !== cardEl) return; // ignore bubbling from children
+    cardEl.removeEventListener('transitionend', onEnd);
+    // proceed with the existing flip + open sequence
+    afterCentered();
+  };
+  cardEl.addEventListener('transitionend', onEnd);
 }
 
-/* === Progressive loading === */
+/* === Click flows (left/right) === */
 let loadPromise = null;
 async function ensureLoaded(){
   if (!loadPromise){
@@ -510,17 +517,29 @@ async function ensureLoaded(){
 }
 window.addEventListener('load', ()=>{ ensureLoaded().catch(()=>{}); });
 
-/* === Click flows (left/right) === */
 async function startEvents(){
   if (isAnimating) return; isAnimating = true;
 
+  // pick quick if we already have data
   if (events && events.length){ fillLetter(pickOne(events)); }
   else { evTitle.textContent='Loading…'; evVenue.textContent=''; evLink.removeAttribute('href'); }
 
-  openCard(cardEvents);
-  setTimeout(()=>{ openSfx.currentTime=0; openSfx.play().catch(()=>{}); },260);
-  setTimeout(()=>{ isAnimating=false; }, 1000);
+  // hide the other envelope immediately
+  cardDeals.classList.add('is-hidden');
 
+  // body classes (brand fade + show reset)
+  document.body.classList.add('is-open','show-reset');
+
+  // 1) CENTER FIRST
+  centerThenOpen(cardEvents, ()=>{
+    // 2) THEN FLIP + OPEN (unchanged timings)
+    cardEvents.classList.add('is-back');
+    setTimeout(()=>{ cardEvents.classList.add('is-open'); }, 20);
+    setTimeout(()=>{ openSfx.currentTime=0; openSfx.play().catch(()=>{}); },260);
+    setTimeout(()=>{ isAnimating=false; }, 1000);
+  });
+
+  // if we didn’t have data yet, fill after load
   if (!events || !events.length){
     try { await ensureLoaded(); fillLetter(pickOne(events)); } catch(e){}
   }
@@ -532,9 +551,16 @@ async function startDeals(){
   if (deals && deals.length){ fillLetterDeals(pickOne(deals)); }
   else { dealTitle.textContent='Loading…'; dealVenue.textContent=''; dealLink.removeAttribute('href'); }
 
-  openCard(cardDeals);
-  setTimeout(()=>{ openSfx.currentTime=0; openSfx.play().catch(()=>{}); },260);
-  setTimeout(()=>{ isAnimating=false; }, 1000);
+  cardEvents.classList.add('is-hidden');
+
+  document.body.classList.add('is-open','show-reset');
+
+  centerThenOpen(cardDeals, ()=>{
+    cardDeals.classList.add('is-back');
+    setTimeout(()=>{ cardDeals.classList.add('is-open'); }, 20);
+    setTimeout(()=>{ openSfx.currentTime=0; openSfx.play().catch(()=>{}); },260);
+    setTimeout(()=>{ isAnimating=false; }, 1000);
+  });
 
   if (!deals || !deals.length){
     try { await ensureLoaded(); fillLetterDeals(pickOne(deals)); } catch(e){}
@@ -542,8 +568,8 @@ async function startDeals(){
 }
 
 /* === Event bindings === */
-clickOverlay.addEventListener('click', startEvents);
-clickOverlayDeals.addEventListener('click', startDeals);
+document.getElementById('clickOverlay').addEventListener('click', startEvents);
+document.getElementById('clickOverlayDeals').addEventListener('click', startDeals);
 
 letter.addEventListener('click', ()=>{ if(!cardEvents.classList.contains('is-open')) startEvents(); });
 letterD.addEventListener('click',   ()=>{ if(!cardDeals.classList.contains('is-open'))  startDeals();   });
