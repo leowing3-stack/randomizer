@@ -52,14 +52,13 @@
     font-size:72px;
     line-height:1;
     opacity:1;
-    transition: opacity .45s ease; /* base transition */
+    transition: opacity .45s ease; /* base */
     white-space:nowrap;
   }
-  /* Delay the return fade only when body has .title-delayed */
+  /* Delay the title’s fade-in after reset */
   .title-delayed .brand-badge .brand-name{
-    transition: opacity .45s ease .35s; /* add 350ms delay on fade-in */
+    transition: opacity .45s ease .5s; /* 500ms delay */
   }
-
   .brand-badge .brand-name .social{ font-family: "MadeTommyBold", sans-serif; }
   .brand-badge .brand-name .burst { font-family: "BrotherBold",   sans-serif; }
   .brand-badge .brand-name .white{ color:var(--white); }
@@ -94,9 +93,7 @@
       grid-column .45s ease,
       z-index .2s ease,
       opacity .3s ease,
-      visibility .3s ease,
-      top .45s ease,
-      left .45s ease;
+      visibility .3s ease;
   }
 
   .click-overlay{ position:absolute; inset:0; cursor:pointer; z-index:19; background:transparent; }
@@ -219,20 +216,20 @@
     line-height:1; display:flex; align-items:center; justify-content:center;
   }
 
-  /* Fixed, truly centered state after the slide completes */
+  /* Lock centered after slide completes */
   .stage.grid-2 .stack.to-center-fixed{
     position: fixed;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%); /* stay centered */
+    transform: translate(-50%, -50%);
     grid-column: 1 / -1;
     z-index: 22;
   }
 
-  /* Hide the other card entirely when one is open/centering */
-  .stage.grid-2 .stack.is-hidden{
-    opacity:0;
-    visibility:hidden;
+  /* Immediately hide the other card WITHOUT reflow (keeps layout space) */
+  .stage.grid-2 .stack.is-ghost{
+    visibility: hidden; /* keeps its space in the grid */
+    opacity: 0;
     pointer-events:none;
   }
 
@@ -367,7 +364,7 @@
 /* === DATA SOURCE (unchanged) === */
 const CSV_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vQi9O78dGEZQ38WWiuMBKKNJwlp6J-yLmPP2lCjJJAHifG1YnpIPVvGt9tKdULSC4ZW9CBiIQOTOx7L/pub?gid=1474444500&single=true&output=csv";
 
-/* === ELEMENTS (existing + new right-hand IDs) === */
+/* === ELEMENTS === */
 const cardEvents = document.getElementById('cardEvents');
 const cardDeals  = document.getElementById('cardDeals');
 
@@ -393,7 +390,7 @@ let events  = [];
 let deals   = [];
 let isAnimating = false;
 
-/* === CSV parsing (adds category support) === */
+/* === CSV parsing (category support) === */
 function parseCSV(text){
   const rows=text.split(/\r?\n/).filter(l=>l.trim().length);
   if (rows.length < 1) return [];
@@ -456,13 +453,13 @@ function isActiveToday(ev, now){
   return effectiveEnd > now;
 }
 
-/* === Category filter helpers (NEW) === */
+/* === Category helpers === */
 function normCat(c){
   return (c||'').toLowerCase().replace(/[\s\-]+/g,'_').trim();
 }
 const EVENT_OK = new Set(['community','live_music','pub_quiz']);
 
-/* === Load & split rows once; then filter into events/deals === */
+/* === Load & split rows once === */
 async function loadRows(){
   const res = await fetch(CSV_URL);
   if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
@@ -472,10 +469,7 @@ async function loadRows(){
   const now = new Date();
   allRows = rows.filter(ev => isActiveToday(ev, now));
 
-  // Left envelope: categories in EVENT_OK
   events = allRows.filter(ev => EVENT_OK.has(normCat(ev.category)));
-
-  // Right envelope: category contains 'deal'
   deals  = allRows.filter(ev => normCat(ev.category).includes('deal'));
 
   if (events.length===0) events=[{title:'No events left today', venue:'', url:'#'}];
@@ -486,46 +480,45 @@ function pickOne(list){ return list.length ? list[Math.floor(Math.random()*list.
 function fillLetter(ev){ evTitle.textContent=ev.title; evVenue.textContent=ev.venue; evLink.href=ev.url; }
 function fillLetterDeals(ev){ dealTitle.textContent=ev.title; dealVenue.textContent=ev.venue; dealLink.href=ev.url; }
 
-/* === Reset / common === */
-function resetBothInstant(){
-  // clear classes
-  cardEvents.classList.remove('is-back','is-open','is-hidden','to-center-fixed');
-  cardDeals.classList.remove('is-back','is-open','is-hidden','to-center-fixed');
-  // clear inline transforms from slide-to-center
-  cardEvents.style.transition = '';
-  cardEvents.style.transform  = '';
-  cardDeals.style.transition  = '';
-  cardDeals.style.transform   = '';
-  document.body.classList.remove('show-reset','is-open');
-}
-
-/* === Slide from current place to center (FLIP-like) then continue === */
-function slideToCenter(cardEl, thenFn){
-  // Compute element center and viewport center
-  const rect = cardEl.getBoundingClientRect();
-  const elCx = rect.left + rect.width/2;
-  const elCy = rect.top  + rect.height/2;
+/* === Center slide that starts from the element’s true on-screen position === */
+function slideToCenterFromRect(cardEl, preRect, thenFn){
   const vpCx = window.innerWidth  / 2;
   const vpCy = window.innerHeight / 2;
+  const elCx = preRect.left + preRect.width/2;
+  const elCy = preRect.top  + preRect.height/2;
 
-  // Delta to move the element’s current visual position to viewport center
   const dx = vpCx - elCx;
   const dy = vpCy - elCy;
 
-  // Animate via transform from where it sits now
   cardEl.style.transition = 'transform .45s ease';
-  cardEl.style.transform  = `translate(${dx}px, ${dy}px)`;
+  cardEl.style.transform  = 'translate(0,0)'; // ensure baseline
+  // Force style calc then apply target to trigger transition reliably
+  requestAnimationFrame(()=>{
+    cardEl.style.transform = `translate(${dx}px, ${dy}px)`;
+  });
 
-  // After the slide finishes, lock it in fixed centered state and clear inline styles
   const onEnd = (e)=>{
     if (e.target !== cardEl) return;
     cardEl.removeEventListener('transitionend', onEnd);
     cardEl.style.transition = '';
     cardEl.style.transform  = '';
-    cardEl.classList.add('to-center-fixed');
-    thenFn(); // proceed to existing flip+open sequence
+    cardEl.classList.add('to-center-fixed'); // lock perfectly centered
+    thenFn();
   };
   cardEl.addEventListener('transitionend', onEnd);
+}
+
+/* === Reset === */
+function resetBothInstant(){
+  // clear classes
+  cardEvents.classList.remove('is-back','is-open','to-center-fixed','is-ghost');
+  cardDeals.classList.remove('is-back','is-open','to-center-fixed','is-ghost');
+  // clear inline transforms
+  cardEvents.style.transition = '';
+  cardEvents.style.transform  = '';
+  cardDeals.style.transition  = '';
+  cardDeals.style.transform   = '';
+  document.body.classList.remove('show-reset','is-open');
 }
 
 /* === Progressive loading === */
@@ -542,22 +535,28 @@ window.addEventListener('load', ()=>{ ensureLoaded().catch(()=>{}); });
 async function startEvents(){
   if (isAnimating) return; isAnimating = true;
 
+  // Measure BEFORE hiding the other card to avoid any reflow jumping
+  const preRect = cardEvents.getBoundingClientRect();
+
+  // Instantly hide the other envelope without reflow (keeps grid space)
+  cardDeals.classList.add('is-ghost');
+
+  // UI state
+  document.body.classList.add('is-open','show-reset');
+
+  // Fill fast if we have data
   if (events && events.length){ fillLetter(pickOne(events)); }
   else { evTitle.textContent='Loading…'; evVenue.textContent=''; evLink.removeAttribute('href'); }
 
-  // hide the other envelope and prep body classes
-  cardDeals.classList.add('is-hidden');
-  document.body.classList.add('is-open','show-reset');
-
-  // 1) SLIDE from current left-side position to center
-  slideToCenter(cardEvents, ()=>{
-    // 2) THEN FLIP + OPEN (unchanged timings)
+  // Slide from actual position to center, then run the existing flip sequence
+  slideToCenterFromRect(cardEvents, preRect, ()=>{
     cardEvents.classList.add('is-back');
     setTimeout(()=>{ cardEvents.classList.add('is-open'); }, 20);
     setTimeout(()=>{ openSfx.currentTime=0; openSfx.play().catch(()=>{}); },260);
     setTimeout(()=>{ isAnimating=false; }, 1000);
   });
 
+  // Complete data if needed
   if (!events || !events.length){
     try { await ensureLoaded(); fillLetter(pickOne(events)); } catch(e){}
   }
@@ -566,13 +565,16 @@ async function startEvents(){
 async function startDeals(){
   if (isAnimating) return; isAnimating = true;
 
+  const preRect = cardDeals.getBoundingClientRect();
+
+  cardEvents.classList.add('is-ghost');
+
+  document.body.classList.add('is-open','show-reset');
+
   if (deals && deals.length){ fillLetterDeals(pickOne(deals)); }
   else { dealTitle.textContent='Loading…'; dealVenue.textContent=''; dealLink.removeAttribute('href'); }
 
-  cardEvents.classList.add('is-hidden');
-  document.body.classList.add('is-open','show-reset');
-
-  slideToCenter(cardDeals, ()=>{
+  slideToCenterFromRect(cardDeals, preRect, ()=>{
     cardDeals.classList.add('is-back');
     setTimeout(()=>{ cardDeals.classList.add('is-open'); }, 20);
     setTimeout(()=>{ openSfx.currentTime=0; openSfx.play().catch(()=>{}); },260);
@@ -595,20 +597,18 @@ resetBtn.addEventListener('click', ()=>{
   if(isAnimating) return; 
   isAnimating=true;
 
-  // Delay the title’s fade-in a touch on return
+  // Keep title hidden a touch longer on return
   document.body.classList.add('title-delayed');
   document.body.classList.remove('show-reset','is-open');
 
   setTimeout(()=>{ 
     resetBothInstant();
-    document.querySelector('.brand-badge .brand-name')?.classList.remove('fade-out');
-
-    // Remove the delay helper after the fade completes
+    // After envelopes are back, allow the title to fade in (via delayed transition)
     setTimeout(()=>{ 
       document.body.classList.remove('title-delayed');
       isAnimating=false; 
-    }, 600); /* delay buffer > .35s */
-  },300);
+    }, 700); // a bit > .5s delay so it appears after things settle
+  }, 300);
 });
 </script>
 </body>
