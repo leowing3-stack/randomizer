@@ -469,23 +469,34 @@ function pickOne(list){ return list.length ? list[Math.floor(Math.random()*list.
 function fillLetter(ev){ evTitle.textContent=ev.title; evVenue.textContent=ev.venue; evLink.href=ev.url; }
 function fillLetterDeals(ev){ dealTitle.textContent=ev.title; dealVenue.textContent=ev.venue; dealLink.href=ev.url; }
 
-/* === Slide to center without post-jitter, then flip === */
-function slideToCenterNoJitter(cardEl, thenFlip){
+/* === Slide to center AND grow to original size, then flip === */
+function slideToCenterGrow(cardEl, thenFlip){
+  // current position & size
   const rect = cardEl.getBoundingClientRect();
   const elCx = rect.left + rect.width/2;
   const elCy = rect.top  + rect.height/2;
+
+  // viewport center
   const vpCx = window.innerWidth  / 2;
   const vpCy = window.innerHeight / 2;
+
+  // original single-envelope width: min(88vw, 660px)
+  const targetW = Math.min(window.innerWidth * 0.88, 660);
+  const scale   = targetW / rect.width;
+
+  // move to center; scale about the center (default transform-origin)
   const dx = vpCx - elCx;
   const dy = vpCy - elCy;
 
+  cardEl.style.transformOrigin = '50% 50%';
   cardEl.style.transition = 'transform .45s ease';
-  cardEl.style.transform  = `translate(${dx}px, ${dy}px)`;
+  cardEl.style.transform  = `translate(${dx}px, ${dy}px) scale(${scale})`;
 
   function onEnd(e){
     if (e.target !== cardEl) return;
     cardEl.removeEventListener('transitionend', onEnd);
 
+    // Freeze exactly where it finished (now at target size & centered)
     const after = cardEl.getBoundingClientRect();
 
     cardEl.style.transition = 'none';
@@ -518,6 +529,7 @@ function resetAll(){
     el.style.width      = '';
     el.style.height     = '';
     el.style.zIndex     = '';
+    el.style.transformOrigin = '';
   });
 
   document.body.classList.remove('show-reset','is-open');
@@ -537,13 +549,16 @@ window.addEventListener('load', ()=>{ ensureLoaded().catch(()=>{}); });
 async function startEvents(){
   if (isAnimating) return; isAnimating = true;
 
+  // Hide the other envelope immediately
   cardDeals.classList.add('is-ghost');
   document.body.classList.add('is-open','show-reset');
 
+  // Quick fill if available
   if (events && events.length){ fillLetter(pickOne(events)); }
   else { evTitle.textContent='Loading…'; evVenue.textContent=''; evLink.removeAttribute('href'); }
 
-  slideToCenterNoJitter(cardEvents, ()=>{
+  slideToCenterGrow(cardEvents, ()=>{
+    // flip + open (unchanged)
     cardEvents.classList.add('is-back');
     setTimeout(()=>{ cardEvents.classList.add('is-open'); }, 20);
     setTimeout(()=>{ openSfx.currentTime=0; openSfx.play().catch(()=>{}); },260);
@@ -564,7 +579,7 @@ async function startDeals(){
   if (deals && deals.length){ fillLetterDeals(pickOne(deals)); }
   else { dealTitle.textContent='Loading…'; dealVenue.textContent=''; dealLink.removeAttribute('href'); }
 
-  slideToCenterNoJitter(cardDeals, ()=>{
+  slideToCenterGrow(cardDeals, ()=>{
     cardDeals.classList.add('is-back');
     setTimeout(()=>{ cardDeals.classList.add('is-open'); }, 20);
     setTimeout(()=>{ openSfx.currentTime=0; openSfx.play().catch(()=>{}); },260);
@@ -595,21 +610,19 @@ resetBtn.addEventListener('click', ()=>{
   body.classList.add('hold-title');
   if (brandName) brandName.style.opacity = '0';
 
-  // Small tick so the hold takes effect before we change other classes
   requestAnimationFrame(()=>{
     body.classList.remove('show-reset','is-open');
 
-    // Allow the UI to animate the reset button etc., then restore envelopes
     setTimeout(()=>{
-      resetAll(); // envelopes snap back to their original grid spots
+      resetAll(); // envelopes snap back
 
-      // Give the layout a brief moment to settle BEFORE showing the title
+      // Let layout settle before showing the title
       setTimeout(()=>{
-        body.classList.remove('hold-title');   // now the CSS fade-in can occur
-        if (brandName) brandName.style.opacity = ''; // return to stylesheet control
+        body.classList.remove('hold-title');
+        if (brandName) brandName.style.opacity = '';
         isAnimating = false;
-      }, 300); // delay AFTER envelopes are back
-    }, 300);   // matches prior reset timing before we restore envelopes
+      }, 300);
+    }, 300);
   });
 });
 </script>
