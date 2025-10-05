@@ -60,7 +60,15 @@
   .brand-badge .brand-name .burst { font-family: "BrotherBold",   sans-serif; }
   .brand-badge .brand-name .white{ color:var(--white); }
   .brand-badge .brand-name .yellow{ color:var(--yellow); }
+
+  /* Existing: hide while envelopes are open */
   .is-open .brand-badge .brand-name{ opacity:0; }
+
+  /* NEW: keep title hidden during reset until we explicitly release it */
+  .hold-title .brand-badge .brand-name{
+    opacity:0;
+    transition: opacity .45s ease; /* keep the same fade but we control when it starts */
+  }
 
   .stage{
     position:relative;
@@ -584,13 +592,23 @@ clickOverlayDeals.addEventListener('click', startDeals);
 letter.addEventListener('click', ()=>{ if(!cardEvents.classList.contains('is-open')) startEvents(); });
 letterD.addEventListener('click',   ()=>{ if(!cardDeals.classList.contains('is-open'))  startDeals();   });
 
+/* === Reset button with delayed title fade-in === */
 resetBtn.addEventListener('click', ()=>{ 
   if(isAnimating) return; 
   isAnimating=true;
+
+  // Keep title hidden throughout the reset sequence
+  document.body.classList.add('hold-title');
   document.body.classList.remove('show-reset','is-open');
+
   setTimeout(()=>{ 
     resetAll();
-    setTimeout(()=>{ isAnimating=false; }, 450);
+    // Finish envelope reset timing first…
+    setTimeout(()=>{ 
+      // …then allow the "Social Burst" words to fade back in
+      document.body.classList.remove('hold-title');
+      isAnimating=false; 
+    }, 450); // matches prior settle timing; words fade in after this
   }, 300);
 });
 </script>
