@@ -20,7 +20,6 @@
     --safe-area-top: env(safe-area-inset-top, 18px);
     --safe-area-left: env(safe-area-inset-left, 18px);
     --safe-area-bottom: env(safe-area-inset-bottom, 22px);
-    --env-gap: clamp(18px, 3vw, 28px);
   }
 
   body{
@@ -32,6 +31,7 @@
     overflow:hidden;
   }
 
+  /* Hide stacks until we’ve precomputed text scale to avoid any size “pop” */
   body.precompute .stack{ visibility:hidden; }
 
   .brand-badge{
@@ -48,6 +48,7 @@
 
   .brand-badge .brand-name{
     position:fixed;
+    /* logo center (216/2=108) minus half text height (72/2=36) */
     top: calc(var(--safe-area-top) + 108px - 36px);
     left:50%;
     transform: translateX(-50%);
@@ -63,8 +64,14 @@
   .brand-badge .brand-name .white{ color:var(--white); }
   .brand-badge .brand-name .yellow{ color:var(--yellow); }
 
+  /* Hidden while an envelope is open */
   .is-open .brand-badge .brand-name{ opacity:0; }
-  .hold-title .brand-badge .brand-name{ opacity:0; transition: opacity .45s ease; }
+
+  /* Keep title hidden during reset until JS releases it */
+  .hold-title .brand-badge .brand-name{
+    opacity:0;
+    transition: opacity .45s ease;
+  }
 
   .stage{
     position:relative;
@@ -73,21 +80,28 @@
     perspective: 1600px;
   }
 
+  /* two-column layout */
   .stage.grid-2{
     display:grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--env-gap);
+    gap: clamp(18px, 3vw, 28px);
     align-items:center;
     justify-items:center;
     height:100dvh;
   }
 
+  /* three-quarter width so both fit */
   .stack{
     position:relative;
     width:min(44vw, 495px);
     aspect-ratio:2/1;
     display:grid; place-items:center;
-    transition: transform .45s ease, z-index .2s ease, opacity .2s ease, visibility .2s ease;
+    transition:
+      transform .45s ease,
+      z-index .2s ease,
+      opacity .2s ease,
+      visibility .2s ease;
+    /* per-card counter-scale of front text (set by JS before first paint) */
     --text-comp-scale: 1;
   }
 
@@ -100,6 +114,7 @@
     transition: transform 0.8s ease;
     z-index:10;
   }
+  /* flip states, per-card */
   #cardEvents.is-back .envelope{ transform: rotateY(180deg); }
   #cardDeals.is-back  .envelope{ transform: rotateY(180deg); }
 
@@ -113,6 +128,7 @@
   }
   .env-front{ transform: rotateY(0deg); }
 
+  /* Front label wrapper: counter-scale so text stays constant size */
   .env-front .front-text{
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
     transform-origin:center center;
@@ -124,6 +140,7 @@
     font-size: clamp(24px, 5vw, 44px);
   }
 
+  /* ===== BACK with triangular flap ===== */
   .env-back{
     transform: rotateY(180deg);
     transform-style: preserve-3d;
@@ -214,9 +231,33 @@
     line-height:1; display:flex; align-items:center; justify-content:center;
   }
 
-  .stack.is-ghost{ visibility:hidden; opacity:0; pointer-events:none; }
+  /* Instantly hide the non-clicked card without reflow */
+  .stack.is-ghost{
+    visibility:hidden;
+    opacity:0;
+    pointer-events:none;
+  }
 
-  /* ============== MOBILE VERSION (ONLY CHANGE) ============== */
+  /* ================= MOBILE ONLY CHANGES ================= */
+  /* 1) Under 860px: stack vertically, **small gap**, fit viewport height */
+  @media (max-width: 860px) {
+    .stage.grid-2{
+      grid-template-columns: 1fr;
+      gap: 8px !important;       /* SMALL GAP HERE */
+      row-gap: 8px !important;   /* SMALL GAP HERE */
+      height: 100dvh;
+      min-height: 100dvh;
+      padding-top: calc(var(--safe-area-top) + 240px);
+      padding-bottom: 0;
+      align-content: start;
+    }
+    .stage.grid-2 .stack{
+      width: min(92vw, 520px);
+      margin: 0 !important;
+    }
+  }
+
+  /* 2) Under 600px: same, slightly narrower for small phones */
   @media (max-width: 600px) {
     .brand-badge {
       position: absolute;
@@ -225,19 +266,16 @@
       transform: translateX(-50%);
       flex-direction: column;
       align-items: center;
-      gap: 4px; /* <— SMALL GAP between logo and SocialBurst text */
+      gap: 8px;
     }
-
     .brand-badge img {
       width: 180px;
       height: 180px;
       margin: 0 auto;
     }
-
     .brand-badge .brand-name {
       position: static;
       transform: none;
-      margin-top: 0; /* tight alignment under logo */
       font-size: clamp(28px, 9vw, 48px);
       line-height: 1.1;
       text-align: center;
@@ -246,93 +284,426 @@
 
     .stage.grid-2{
       grid-template-columns: 1fr;
-      gap: 10px; /* small even gap between envelopes */
+      gap: 8px !important;       /* SMALL GAP HERE */
+      row-gap: 8px !important;   /* SMALL GAP HERE */
       padding-top: calc(var(--safe-area-top) + 240px);
+      padding-bottom: 0;
       align-content: start;
     }
     .stage.grid-2 .stack{
       width: min(88vw, 500px);
-      margin: 0 auto;
+      margin: 0 !important;
     }
   }
 </style>
 </head>
 <body class="precompute">
-  <div class="brand-badge">
-    <img src="./SocialBurstRandomizer/img/logo-nobg.png?v=2" alt="logo"/>
-    <div class="brand-name">
-      <span class="social white">Social</span> <span class="burst yellow">Burst</span>
+
+<div class="brand-badge">
+  <img src="./SocialBurstRandomizer/img/logo-nobg.png?v=2" alt="logo"/>
+  <div class="brand-name">
+    <span class="social white">Social</span> <span class="burst yellow">Burst</span>
+  </div>
+</div>
+
+<main class="stage grid-2">
+  <!-- LEFT: EVENTS -->
+  <section id="cardEvents" class="stack">
+    <div id="clickOverlay" class="click-overlay" aria-label="Open events"></div>
+
+    <div class="envelope">
+      <div class="env-face env-front">
+        <div class="front-text" style="gap:2px;">
+          <div class="top-secret" style="margin:0;">TOP SECRET</div>
+          <div class="subtitle" style="color:#8338EC; font-weight:700; font-size:clamp(18px,4vw,26px); margin:0;">Events Happening Today</div>
+        </div>
+      </div>
+
+      <div class="env-face env-back">
+        <div class="back-body"></div>
+        <div class="back-top-guide"></div>
+        <div class="flap3d" aria-hidden="true">
+          <svg class="flap-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <polygon class="flap-tri" points="0,0 100,0 50,100"></polygon>
+          </svg>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <main class="stage grid-2">
-    <!-- LEFT: EVENTS -->
-    <section id="cardEvents" class="stack">
-      <div id="clickOverlay" class="click-overlay" aria-label="Open events"></div>
-      <div class="envelope">
-        <div class="env-face env-front">
-          <div class="front-text" style="gap:2px;">
-            <div class="top-secret" style="margin:0;">TOP SECRET</div>
-            <div class="subtitle" style="color:#8338EC; font-weight:700; font-size:clamp(18px,4vw,26px); margin:0;">Events Happening Today</div>
-          </div>
-        </div>
-        <div class="env-face env-back">
-          <div class="back-body"></div>
-          <div class="back-top-guide"></div>
-          <div class="flap3d" aria-hidden="true">
-            <svg class="flap-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <polygon class="flap-tri" points="0,0 100,0 50,100"></polygon>
-            </svg>
-          </div>
-        </div>
-      </div>
-      <div class="letter-wrap">
-        <article id="letter" class="letter">
-          <h5>You Are Invited To….</h5>
-          <div id="evTitle" class="title">Loading…</div>
-          <div id="evVenue" class="venue"></div>
-          <div class="more"><a id="evLink" href="#" target="_blank" rel="noopener noreferrer">Open details</a></div>
-        </article>
-      </div>
-    </section>
+    <div class="letter-wrap">
+      <article id="letter" class="letter">
+        <h5>You Are Invited To….</h5>
+        <div id="evTitle" class="title">Loading…</div>
+        <div id="evVenue" class="venue"></div>
+        <div class="more"><a id="evLink" href="#" target="_blank" rel="noopener noreferrer">Open details</a></div>
+      </article>
+    </div>
+  </section>
 
-    <!-- RIGHT: DEALS -->
-    <section id="cardDeals" class="stack">
-      <div id="clickOverlayDeals" class="click-overlay" aria-label="Open deals"></div>
-      <div class="envelope">
-        <div class="env-face env-front">
-          <div class="front-text" style="gap:2px;">
-            <div class="top-secret" style="margin:0;">TOP SECRET</div>
-            <div class="subtitle" style="color:#8338EC; font-weight:700; font-size:clamp(18px,4vw,26px); margin:0;">Discounts Today</div>
-          </div>
-        </div>
-        <div class="env-face env-back">
-          <div class="back-body"></div>
-          <div class="back-top-guide"></div>
-          <div class="flap3d" aria-hidden="true">
-            <svg class="flap-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <polygon class="flap-tri" points="0,0 100,0 50,100"></polygon>
-            </svg>
-          </div>
+  <!-- RIGHT: DEALS -->
+  <section id="cardDeals" class="stack">
+    <div id="clickOverlayDeals" class="click-overlay" aria-label="Open deals"></div>
+
+    <div class="envelope">
+      <div class="env-face env-front">
+        <div class="front-text" style="gap:2px;">
+          <div class="top-secret" style="margin:0;">TOP SECRET</div>
+          <div class="subtitle" style="color:#8338EC; font-weight:700; font-size:clamp(18px,4vw,26px); margin:0;">Discounts Today</div>
         </div>
       </div>
-      <div class="letter-wrap">
-        <article id="letterDeals" class="letter">
-          <h5>Today’s Special….</h5>
-          <div id="dealTitle" class="title">Loading…</div>
-          <div id="dealVenue" class="venue"></div>
-          <div class="more"><a id="dealLink" href="#" target="_blank" rel="noopener noreferrer">View offer</a></div>
-        </article>
+
+      <div class="env-face env-back">
+        <div class="back-body"></div>
+        <div class="back-top-guide"></div>
+        <div class="flap3d" aria-hidden="true">
+          <svg class="flap-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <polygon class="flap-tri" points="0,0 100,0 50,100"></polygon>
+          </svg>
+        </div>
       </div>
-    </section>
-  </main>
+    </div>
 
-  <div class="reset-wrap">
-    <button id="resetBtn" class="reset-btn" aria-label="Reset animation">&#8592;</button>
-  </div>
+    <div class="letter-wrap">
+      <article id="letterDeals" class="letter">
+        <h5>Today’s Special….</h5>
+        <div id="dealTitle" class="title">Loading…</div>
+        <div id="dealVenue" class="venue"></div>
+        <div class="more"><a id="dealLink" href="#" target="_blank" rel="noopener noreferrer">View offer</a></div>
+      </article>
+    </div>
+  </section>
+</main>
 
-  <audio id="openSfx" preload="auto">
-    <source src="./SocialBurstRandomizer/sfx/letter-open.mp3" type="audio/mpeg"/>
-  </audio>
+<div class="reset-wrap">
+  <button id="resetBtn" class="reset-btn" aria-label="Reset animation">&#8592;</button>
+</div>
+
+<audio id="openSfx" preload="auto">
+  <source src="./SocialBurstRandomizer/sfx/letter-open.mp3" type="audio/mpeg"/>
+</audio>
+
+<script>
+/* === DATA SOURCE (unchanged) === */
+const CSV_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vQi9O78dGEZQ38WWiuMBKKNJwlp6J-yLmPP2lCjJJAHifG1YnpIPVvGt9tKdULSC4ZW9CBiIQOTOx7L/pub?gid=1474444500&single=true&output=csv";
+
+/* === ELEMENTS === */
+const cardEvents = document.getElementById('cardEvents');
+const cardDeals  = document.getElementById('cardDeals');
+
+const clickOverlay      = document.getElementById('clickOverlay');
+const clickOverlayDeals = document.getElementById('clickOverlayDeals');
+
+const letter  = document.getElementById('letter');
+const letterD = document.getElementById('letterDeals');
+
+const resetBtn = document.getElementById('resetBtn');
+const openSfx  = document.getElementById('openSfx');
+
+const evTitle  = document.getElementById('evTitle');
+const evVenue  = document.getElementById('evVenue');
+const evLink   = document.getElementById('evLink');
+
+const dealTitle= document.getElementById('dealTitle');
+const dealVenue= document.getElementById('dealVenue');
+const dealLink = document.getElementById('dealLink');
+
+let allRows = [];
+let events  = [];
+let deals   = [];
+let isAnimating = false;
+
+/* === CSV parsing (with category) === */
+function parseCSV(text){
+  const rows=text.split(/\r?\n/).filter(l=>l.trim().length);
+  if (rows.length < 1) return [];
+  const header=rows.shift().split(',').map(h=>h.trim());
+  const idx={
+    title: header.indexOf('title'),
+    venue: header.indexOf('venue_name'),
+    url:   header.indexOf('source_url'),
+    start: header.indexOf('start_datetime'),
+    end:   header.indexOf('end_datetime'),
+    cat:   header.indexOf('category')
+  };
+  return rows.map(line=>{
+    const parts=line.split(",");
+    return {
+      title: parts[idx.title]||'',
+      venue: parts[idx.venue]||'',
+      url:   parts[idx.url]||'#',
+      start_datetime: parts[idx.start]||'',
+      end_datetime:   parts[idx.end]||'',
+      category: (idx.cat>=0 ? (parts[idx.cat]||'') : '')
+    };
+  });
+}
+
+/* === Time helpers === */
+function parseDMYTime(str){
+  const s=(str||'').toLowerCase().replace(/\u00a0|\u202f/g,' ').trim();
+  if(!s) return null;
+  const m=s.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?\s+(\d{1,2})\/(\d{1,2})$/i);
+  if(!m) return null;
+  let hh=parseInt(m[1],10);
+  const mm=m[2]?parseInt(m[2],10):0;
+  const ap=(m[3]||'').replace(/\./g,'').toLowerCase();
+  const d=parseInt(m[4],10), mo=parseInt(m[5],10);
+  const year=(new Date()).getFullYear();
+  if(ap==='pm' && hh<12) hh+=12;
+  if(ap==='am' && hh===12) hh=0;
+  const dt=new Date(year, mo-1, d, hh, mm, 0, 0);
+  return isNaN(dt)?null:dt;
+}
+function isActiveToday(ev, now){
+  const s=parseDMYTime(ev.start_datetime);
+  let   e=parseDMYTime(ev.end_datetime);
+  if(!s && !e) return false;
+
+  const sameDay = (a,b)=>a && b &&
+    a.getFullYear()===b.getFullYear() &&
+    a.getMonth()===b.getMonth() &&
+    a.getDate()===b.getDate();
+
+  const isStartToday = s && sameDay(s, now);
+  const isEndToday   = e && sameDay(e, now);
+  if(!isStartToday && !isEndToday) return false;
+
+  if(s && !e) e = new Date(s.getTime()+2*60*60*1000);
+  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23,59,59,999);
+  const effectiveEnd = (isEndToday && e) ? e : endOfToday;
+
+  return effectiveEnd > now;
+}
+
+/* === Category helpers === */
+function normCat(c){
+  return (c||'').toLowerCase().replace(/[\s\-]+/g,'_').trim();
+}
+const EVENT_OK = new Set(['community','live_music','pub_quiz']);
+
+/* === Load + split === */
+async function loadRows(){
+  const res = await fetch(CSV_URL);
+  if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+  const txt = await res.text();
+  const rows = parseCSV(txt);
+
+  const now = new Date();
+  allRows = rows.filter(ev => isActiveToday(ev, now));
+
+  events = allRows.filter(ev => EVENT_OK.has(normCat(ev.category)));
+  deals  = allRows.filter(ev => normCat(ev.category).includes('deal'));
+
+  if (events.length===0) events=[{title:'No events left today', venue:'', url:'#'}];
+  if (deals.length===0)  deals=[{title:'No discounts today', venue:'', url:'#'}];
+}
+
+/* === Pick/fill === */
+function pickOne(list){ return list.length ? list[Math.floor(Math.random()*list.length)] : {title:'Nothing today', venue:'', url:'#'}; }
+function fillLetter(ev){ evTitle.textContent=ev.title; evVenue.textContent=ev.venue; evLink.href=ev.url; }
+function fillLetterDeals(ev){ dealTitle.textContent=ev.title; dealVenue.textContent=ev.venue; dealLink.href=ev.url; }
+
+/* === Precompute constant-size front text BEFORE showing the cards === */
+function setFrontTextScaleFor(cardEl){
+  // Current width vs target single-envelope width
+  const rect = cardEl.getBoundingClientRect();
+  // If rect is 0 (not laid out yet), temporarily show to measure
+  let tempShown = false;
+  if (!rect.width){
+    cardEl.style.visibility = 'hidden';
+    cardEl.style.display = 'grid';
+    tempShown = true;
+  }
+  const r = cardEl.getBoundingClientRect();
+  const targetW = Math.min(window.innerWidth * 0.88, 660);
+  const scale = targetW / (r.width || 1);
+  cardEl.style.setProperty('--text-comp-scale', (1/scale).toString());
+  if (tempShown){
+    cardEl.style.display = '';
+    cardEl.style.visibility = '';
+  }
+}
+
+/* === Slide to center AND grow to original size (front text already counter-scaled), then flip === */
+function slideToCenterGrow(cardEl, thenFlip){
+  // position & size
+  const rect = cardEl.getBoundingClientRect();
+  const elCx = rect.left + rect.width/2;
+  const elCy = rect.top  + rect.height/2;
+
+  // viewport center
+  const vpCx = window.innerWidth  / 2;
+  const vpCy = window.innerHeight / 2;
+
+  // target size
+  const targetW = Math.min(window.innerWidth * 0.88, 660);
+  const scale   = targetW / rect.width;
+
+  // move to center; scale about the center
+  const dx = vpCx - elCx;
+  const dy = vpCy - elCy;
+
+  cardEl.style.transformOrigin = '50% 50%';
+  cardEl.style.transition = 'transform .45s ease';
+  cardEl.style.transform  = `translate(${dx}px, ${dy}px) scale(${scale})`;
+
+  function onEnd(e){
+    if (e.target !== cardEl) return;
+    cardEl.removeEventListener('transitionend', onEnd);
+
+    // Freeze exactly where it finished (now at target size & centered)
+    const after = cardEl.getBoundingClientRect();
+
+    cardEl.style.transition = 'none';
+    cardEl.style.transform  = 'none';
+    cardEl.style.position   = 'fixed';
+    cardEl.style.top        = `${after.top}px`;
+    cardEl.style.left       = `${after.left}px`;
+    cardEl.style.width      = `${after.width}px`;
+    cardEl.style.height     = `${after.height}px`;
+    cardEl.style.zIndex     = '22';
+
+    // Clear counter-scale now that transforms are removed (so final size is correct)
+    cardEl.style.removeProperty('--text-comp-scale');
+
+    thenFlip();
+  }
+  cardEl.addEventListener('transitionend', onEnd);
+}
+
+/* === Reset === */
+function resetAll(){
+  // show both
+  cardEvents.classList.remove('is-ghost','is-back','is-open');
+  cardDeals.classList.remove('is-ghost','is-back','is-open');
+
+  // clear inline styles used for slide/freeze
+  [cardEvents, cardDeals].forEach(el=>{
+    el.style.transition = '';
+    el.style.transform  = '';
+    el.style.position   = '';
+    el.style.top        = '';
+    el.style.left       = '';
+    el.style.width      = '';
+    el.style.height     = '';
+    el.style.zIndex     = '';
+    el.style.transformOrigin = '';
+    el.style.removeProperty('--text-comp-scale');
+  });
+
+  // Recompute constant-size text for initial state
+  setFrontTextScaleFor(cardEvents);
+  setFrontTextScaleFor(cardDeals);
+
+  document.body.classList.remove('show-reset','is-open');
+}
+
+/* === Progressive load === */
+let loadPromise = null;
+async function ensureLoaded(){
+  if (!loadPromise){
+    loadPromise = (async()=>{ await loadRows(); })().catch(e=>console.error(e));
+  }
+  return loadPromise;
+}
+
+/* Precompute front-text scaling BEFORE first paint of stacks */
+(function early(){
+  // Run ASAP after HTML parsed
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', () => {
+      setFrontTextScaleFor(cardEvents);
+      setFrontTextScaleFor(cardDeals);
+      document.body.classList.remove('precompute');
+    });
+  } else {
+    setFrontTextScaleFor(cardEvents);
+    setFrontTextScaleFor(cardDeals);
+    document.body.classList.remove('precompute');
+  }
+})();
+
+window.addEventListener('load', ()=>{ ensureLoaded().catch(()=>{}); });
+
+/* === Click flows === */
+async function startEvents(){
+  if (isAnimating) return; isAnimating = true;
+
+  // Hide the other envelope immediately
+  cardDeals.classList.add('is-ghost');
+  document.body.classList.add('is-open','show-reset');
+
+  // Quick fill if available
+  if (events && events.length){ fillLetter(pickOne(events)); }
+  else { evTitle.textContent='Loading…'; evVenue.textContent=''; evLink.removeAttribute('href'); }
+
+  slideToCenterGrow(cardEvents, ()=>{
+    // flip + open (unchanged)
+    cardEvents.classList.add('is-back');
+    setTimeout(()=>{ cardEvents.classList.add('is-open'); }, 20);
+    setTimeout(()=>{ openSfx.currentTime=0; openSfx.play().catch(()=>{}); },260);
+    setTimeout(()=>{ isAnimating=false; }, 1000);
+  });
+
+  if (!events || !events.length){
+    try { await ensureLoaded(); fillLetter(pickOne(events)); } catch(e){}
+  }
+}
+
+async function startDeals(){
+  if (isAnimating) return; isAnimating = true;
+
+  cardEvents.classList.add('is-ghost');
+  document.body.classList.add('is-open','show-reset');
+
+  if (deals && deals.length){ fillLetterDeals(pickOne(deals)); }
+  else { dealTitle.textContent='Loading…'; dealVenue.textContent=''; dealLink.removeAttribute('href'); }
+
+  slideToCenterGrow(cardDeals, ()=>{
+    cardDeals.classList.add('is-back');
+    setTimeout(()=>{ cardDeals.classList.add('is-open'); }, 20);
+    setTimeout(()=>{ openSfx.currentTime=0; openSfx.play().catch(()=>{}); },260);
+    setTimeout(()=>{ isAnimating=false; }, 1000);
+  });
+
+  if (!deals || !deals.length){
+    try { await ensureLoaded(); fillLetterDeals(pickOne(deals)); } catch(e){}
+  }
+}
+
+/* === Bindings === */
+clickOverlay.addEventListener('click', startEvents);
+clickOverlayDeals.addEventListener('click', startDeals);
+
+letter.addEventListener('click', ()=>{ if(!cardEvents.classList.contains('is-open')) startEvents(); });
+letterD.addEventListener('click',   ()=>{ if(!cardDeals.classList.contains('is-open'))  startDeals();   });
+
+/* === Reset button with title fade-in only AFTER envelopes are back === */
+resetBtn.addEventListener('click', ()=>{ 
+  if(isAnimating) return; 
+  isAnimating = true;
+
+  const body = document.body;
+  const brandName = document.querySelector('.brand-badge .brand-name');
+
+  // Keep title hidden for the whole reset
+  body.classList.add('hold-title');
+  if (brandName) brandName.style.opacity = '0';
+
+  requestAnimationFrame(()=>{
+    body.classList.remove('show-reset','is-open');
+
+    setTimeout(()=>{
+      resetAll(); // envelopes snap back with precomputed text scale
+      // Let layout settle before showing the title
+      setTimeout(()=>{
+        body.classList.remove('hold-title');
+        if (brandName) brandName.style.opacity = '';
+        isAnimating = false;
+      }, 300);
+    }, 300);
+  });
+});
+</script>
 </body>
 </html>
