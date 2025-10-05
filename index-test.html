@@ -239,16 +239,17 @@
   }
 
   /* ========= MOBILE LAYOUT TWEAKS (ONLY CHANGES) ========= */
-  @media (max-width: 860px) {
-    .stage.grid-2{
-      grid-template-columns: 1fr;           /* stack vertically */
-      gap: clamp(8px, 3.5vw, 14px);         /* bring envelopes closer together */
-      height:auto;
-      min-height:100dvh;
-      padding-block: clamp(10px, 3vw, 16px);
-    }
-    .stage.grid-2 .stack{ width:min(88vw, 560px); margin:0 auto; }
+@media (max-width: 860px) {
+  .stage.grid-2{
+    gap: 0 !important;
+    row-gap: 0 !important;
+    /* keep the rest of this block unchanged */
   }
+  .stage.grid-2 .stack{
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+}
 
 /* PATCH START: equal tiny gaps on mobile using spacer + row-gap */
 @media (max-width: 600px) {
