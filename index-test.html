@@ -31,7 +31,7 @@
     overflow:hidden;
   }
 
-  /* Hide stacks until we’ve precomputed text scale to avoid any size “pop” */
+  /* Hide stacks until we drop the precompute flag */
   body.precompute .stack{ visibility:hidden; }
 
   .brand-badge{
@@ -48,7 +48,6 @@
 
   .brand-badge .brand-name{
     position:fixed;
-    /* logo center (216/2=108) minus half text height (72/2=36) */
     top: calc(var(--safe-area-top) + 108px - 36px);
     left:50%;
     transform: translateX(-50%);
@@ -103,16 +102,6 @@
       visibility .2s ease;
   }
 
-  /* NEW: when fixed-centered (after opening), stay centered & responsive */
-  .stack.is-fixed-centered{
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    width: min(88vw, 660px);
-    transform: translate(-50%, -50%);
-    z-index: 22;
-  }
-
   .click-overlay{ position:absolute; inset:0; cursor:pointer; z-index:19; background:transparent; }
 
   .envelope{
@@ -136,7 +125,7 @@
   }
   .env-front{ transform: rotateY(0deg); }
 
-  /* Front label wrapper — scales WITH the envelope */
+  /* Front label wrapper — now scales WITH the envelope (no counter-scale) */
   .env-front .front-text{
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
     transform-origin:center center;
@@ -246,7 +235,6 @@
   }
 
   /* ================= MOBILE ONLY CHANGES ================= */
-  /* 1) Under 860px: stack vertically, small gap, fit viewport height */
   @media (max-width: 860px) {
     .stage.grid-2{
       grid-template-columns: 1fr;
@@ -265,7 +253,6 @@
     }
   }
 
-  /* 2) Under 600px: only adjust logo–text spacing (smaller) */
   @media (max-width: 600px) {
     .brand-badge {
       position: absolute;
@@ -513,7 +500,7 @@ function pickOne(list){ return list.length ? list[Math.floor(Math.random()*list.
 function fillLetter(ev){ evTitle.textContent=ev.title; evVenue.textContent=ev.venue; evLink.href=ev.url; }
 function fillLetterDeals(ev){ dealTitle.textContent=ev.title; dealVenue.textContent=ev.venue; dealLink.href=ev.url; }
 
-/* === Slide to center AND grow to target size, then fix centered-responsively and flip === */
+/* === Slide to center AND grow to target size, then flip === */
 function slideToCenterGrow(cardEl, thenFlip){
   const rect = cardEl.getBoundingClientRect();
   const elCx = rect.left + rect.width/2;
@@ -536,10 +523,16 @@ function slideToCenterGrow(cardEl, thenFlip){
     if (e.target !== cardEl) return;
     cardEl.removeEventListener('transitionend', onEnd);
 
-    /* Clear inline transform and switch to responsive fixed-centered class */
+    const after = cardEl.getBoundingClientRect();
+
     cardEl.style.transition = 'none';
     cardEl.style.transform  = 'none';
-    cardEl.classList.add('is-fixed-centered');
+    cardEl.style.position   = 'fixed';
+    cardEl.style.top        = `${after.top}px`;
+    cardEl.style.left       = `${after.left}px`;
+    cardEl.style.width      = `${after.width}px`;
+    cardEl.style.height     = `${after.height}px`;
+    cardEl.style.zIndex     = '22';
 
     thenFlip();
   }
@@ -548,8 +541,8 @@ function slideToCenterGrow(cardEl, thenFlip){
 
 /* === Reset === */
 function resetAll(){
-  cardEvents.classList.remove('is-ghost','is-back','is-open','is-fixed-centered');
-  cardDeals.classList.remove('is-ghost','is-back','is-open','is-fixed-centered');
+  cardEvents.classList.remove('is-ghost','is-back','is-open');
+  cardDeals.classList.remove('is-ghost','is-back','is-open');
 
   [cardEvents, cardDeals].forEach(el=>{
     el.style.transition = '';
@@ -575,7 +568,7 @@ async function ensureLoaded(){
   return loadPromise;
 }
 
-/* Precompute flag removal */
+/* Remove precompute flag once DOM is ready */
 (function early(){
   if (document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', () => {
