@@ -250,8 +250,13 @@
     .stage.grid-2 .stack{ width:min(88vw, 560px); margin:0 auto; }
   }
 
-/* FINAL PATCH: near-touching stacked envelopes on mobile */
+/* PATCH START: equal tiny gaps on mobile using spacer + row-gap */
 @media (max-width: 600px) {
+  :root {
+    /* one knob: set your tiny gap once; used both above first envelope and between envelopes */
+    --mobile-gap: 4px;
+  }
+
   .brand-badge {
     position: absolute;
     top: var(--safe-area-top);
@@ -259,39 +264,48 @@
     transform: translateX(-50%);
     flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
   }
 
   .brand-badge img {
-    width: 160px;
-    height: 160px;
+    width: 180px;
+    height: 180px;
     margin: 0 auto;
   }
 
   .brand-badge .brand-name {
     position: static;
     transform: none;
-    font-size: clamp(26px, 8vw, 44px);
+    font-size: clamp(28px, 9vw, 48px);
     line-height: 1.1;
     text-align: center;
     white-space: nowrap;
   }
 
-  /* stack vertically with almost no space between */
-  .stage.grid-2 {
-    grid-template-columns: 1fr;
-    gap: 2px; /* almost no gap */
-    padding-top: calc(var(--safe-area-top) + 190px);
-    padding-bottom: 4px;
-    height: auto;
+  /* This spacer equals (logo height + wordmark height + tiny gap) so the first envelope
+     starts *just* under the text. Because we also set the grid row-gap = --mobile-gap,
+     the two gaps are IDENTICAL. */
+  .brand-spacer{
+    height: calc(180px + clamp(28px, 9vw, 48px) + var(--mobile-gap));
   }
 
-  .stage.grid-2 .stack {
-    width: min(90vw, 480px);
-    margin: 0 auto;
+  /* Stack vertically with the SAME tiny gap as above the first envelope */
+  .stage.grid-2{
+    grid-template-columns: 1fr;
+    row-gap: var(--mobile-gap);
+    gap: var(--mobile-gap);
+    padding-top: 0;          /* remove extra padding that caused the huge gap */
+    padding-bottom: 0;
+    height: auto;
+    min-height: 100dvh;
+  }
+
+  .stage.grid-2 .stack{
+    width: min(90vw, 500px);
+    margin: 0 auto;          /* no extra vertical margins */
   }
 }
-</style>
+/* PATCH END */
 </head>
 <body class="precompute">
 
@@ -301,6 +315,9 @@
     <span class="social white">Social</span> <span class="burst yellow">Burst</span>
   </div>
 </div>
+  <!-- PATCH START: spacer to clear brand so we can control equal gaps -->
+<div class="brand-spacer" aria-hidden="true"></div>
+<!-- PATCH END -->
 
 <main class="stage grid-2">
   <!-- LEFT: EVENTS -->
