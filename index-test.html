@@ -238,17 +238,27 @@
     pointer-events:none;
   }
 
-  /* Mobile tweaks */
+  /* ================= MOBILE ONLY CHANGES ================= */
+  /* 1) Under 860px: stack vertically, no gap, fit viewport height */
   @media (max-width: 860px) {
     .stage.grid-2{
       grid-template-columns: 1fr;
-      height:auto;
-      min-height:100dvh;
-      padding-block: clamp(16px, 5vw, 28px);
+      gap: 0 !important;
+      row-gap: 0 !important;
+      height: 100dvh;
+      min-height: 100dvh;
+      /* push stacks just below the brand (logo + wordmark ≈ 240px) */
+      padding-top: calc(var(--safe-area-top) + 240px);
+      padding-bottom: 0;
+      align-content: start; /* start stacking from top */
     }
-    .stage.grid-2 .stack{ width:min(88vw, 560px); }
+    .stage.grid-2 .stack{
+      width: min(92vw, 520px);  /* a touch smaller so two envelopes fit */
+      margin: 0 !important;
+    }
   }
 
+  /* 2) Under 600px: same, but slightly narrower for small phones */
   @media (max-width: 600px) {
     .brand-badge {
       position: absolute;
@@ -259,13 +269,11 @@
       align-items: center;
       gap: 8px;
     }
-
     .brand-badge img {
       width: 180px;
       height: 180px;
       margin: 0 auto;
     }
-
     .brand-badge .brand-name {
       position: static;
       transform: none;
@@ -273,6 +281,19 @@
       line-height: 1.1;
       text-align: center;
       white-space: nowrap;
+    }
+
+    .stage.grid-2{
+      grid-template-columns: 1fr;
+      gap: 0 !important;
+      row-gap: 0 !important;
+      padding-top: calc(var(--safe-area-top) + 240px); /* same brand clearance */
+      padding-bottom: 0;
+      align-content: start;
+    }
+    .stage.grid-2 .stack{
+      width: min(88vw, 500px);   /* slightly smaller again on small phones */
+      margin: 0 !important;
     }
   }
 </style>
