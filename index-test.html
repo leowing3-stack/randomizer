@@ -61,13 +61,13 @@
   .brand-badge .brand-name .white{ color:var(--white); }
   .brand-badge .brand-name .yellow{ color:var(--yellow); }
 
-  /* Existing: hide while envelopes are open */
+  /* Hidden while an envelope is open */
   .is-open .brand-badge .brand-name{ opacity:0; }
 
-  /* NEW: keep title hidden during reset until we explicitly release it */
+  /* Keep title hidden during reset until JS releases it */
   .hold-title .brand-badge .brand-name{
     opacity:0;
-    transition: opacity .45s ease; /* keep the same fade but we control when it starts */
+    transition: opacity .45s ease;
   }
 
   .stage{
@@ -87,7 +87,7 @@
     height:100dvh;
   }
 
-  /* three-quarter width so both fit; unchanged visuals */
+  /* three-quarter width so both fit */
   .stack{
     position:relative;
     width:min(44vw, 495px);
@@ -471,7 +471,6 @@ function fillLetterDeals(ev){ dealTitle.textContent=ev.title; dealVenue.textCont
 
 /* === Slide to center without post-jitter, then flip === */
 function slideToCenterNoJitter(cardEl, thenFlip){
-  // Compute from current on-screen position
   const rect = cardEl.getBoundingClientRect();
   const elCx = rect.left + rect.width/2;
   const elCy = rect.top  + rect.height/2;
@@ -480,18 +479,15 @@ function slideToCenterNoJitter(cardEl, thenFlip){
   const dx = vpCx - elCx;
   const dy = vpCy - elCy;
 
-  // Animate to center
   cardEl.style.transition = 'transform .45s ease';
   cardEl.style.transform  = `translate(${dx}px, ${dy}px)`;
 
-  // When the slide ends, freeze the element exactly where it is
   function onEnd(e){
     if (e.target !== cardEl) return;
     cardEl.removeEventListener('transitionend', onEnd);
 
-    const after = cardEl.getBoundingClientRect(); // exact pixels where it finished
+    const after = cardEl.getBoundingClientRect();
 
-    // Freeze visually: convert to fixed at the same pixels (no movement)
     cardEl.style.transition = 'none';
     cardEl.style.transform  = 'none';
     cardEl.style.position   = 'fixed';
@@ -501,7 +497,7 @@ function slideToCenterNoJitter(cardEl, thenFlip){
     cardEl.style.height     = `${after.height}px`;
     cardEl.style.zIndex     = '22';
 
-    thenFlip(); // run the unchanged flip + letter animation
+    thenFlip();
   }
   cardEl.addEventListener('transitionend', onEnd);
 }
@@ -541,18 +537,13 @@ window.addEventListener('load', ()=>{ ensureLoaded().catch(()=>{}); });
 async function startEvents(){
   if (isAnimating) return; isAnimating = true;
 
-  // Immediately hide the other envelope (no movement)
   cardDeals.classList.add('is-ghost');
-
-  // UI state
   document.body.classList.add('is-open','show-reset');
 
-  // Fill quickly if available
   if (events && events.length){ fillLetter(pickOne(events)); }
   else { evTitle.textContent='Loading…'; evVenue.textContent=''; evLink.removeAttribute('href'); }
 
   slideToCenterNoJitter(cardEvents, ()=>{
-    // flip + open (unchanged timings)
     cardEvents.classList.add('is-back');
     setTimeout(()=>{ cardEvents.classList.add('is-open'); }, 20);
     setTimeout(()=>{ openSfx.currentTime=0; openSfx.play().catch(()=>{}); },260);
@@ -592,24 +583,34 @@ clickOverlayDeals.addEventListener('click', startDeals);
 letter.addEventListener('click', ()=>{ if(!cardEvents.classList.contains('is-open')) startEvents(); });
 letterD.addEventListener('click',   ()=>{ if(!cardDeals.classList.contains('is-open'))  startDeals();   });
 
-/* === Reset button with delayed title fade-in === */
+/* === Reset button with title fade-in only AFTER envelopes are back === */
 resetBtn.addEventListener('click', ()=>{ 
   if(isAnimating) return; 
-  isAnimating=true;
+  isAnimating = true;
 
-  // Keep title hidden throughout the reset sequence
-  document.body.classList.add('hold-title');
-  document.body.classList.remove('show-reset','is-open');
+  const body = document.body;
+  const brandName = document.querySelector('.brand-badge .brand-name');
 
-  setTimeout(()=>{ 
-    resetAll();
-    // Finish envelope reset timing first…
-    setTimeout(()=>{ 
-      // …then allow the "Social Burst" words to fade back in
-      document.body.classList.remove('hold-title');
-      isAnimating=false; 
-    }, 450); // matches prior settle timing; words fade in after this
-  }, 300);
+  // Keep title hidden for the whole reset
+  body.classList.add('hold-title');
+  if (brandName) brandName.style.opacity = '0';
+
+  // Small tick so the hold takes effect before we change other classes
+  requestAnimationFrame(()=>{
+    body.classList.remove('show-reset','is-open');
+
+    // Allow the UI to animate the reset button etc., then restore envelopes
+    setTimeout(()=>{
+      resetAll(); // envelopes snap back to their original grid spots
+
+      // Give the layout a brief moment to settle BEFORE showing the title
+      setTimeout(()=>{
+        body.classList.remove('hold-title');   // now the CSS fade-in can occur
+        if (brandName) brandName.style.opacity = ''; // return to stylesheet control
+        isAnimating = false;
+      }, 300); // delay AFTER envelopes are back
+    }, 300);   // matches prior reset timing before we restore envelopes
+  });
 });
 </script>
 </body>
