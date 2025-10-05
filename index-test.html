@@ -20,6 +20,9 @@
     --safe-area-top: env(safe-area-inset-top, 18px);
     --safe-area-left: env(safe-area-inset-left, 18px);
     --safe-area-bottom: env(safe-area-inset-bottom, 22px);
+
+    /* NEW: single source of truth for envelope gap AND logo→text gap */
+    --env-gap: clamp(18px, 3vw, 28px);
   }
 
   body{
@@ -46,12 +49,12 @@
     height:216px;
   }
 
+  /* CHANGED: move the wordmark just below the logo by exactly --env-gap */
   .brand-badge .brand-name{
     position:fixed;
-    /* logo center (216/2=108) minus half text height (72/2=36) */
-    top: calc(var(--safe-area-top) + 108px - 36px);
-    left:50%;
-    transform: translateX(-50%);
+    top: calc(var(--safe-area-top) + 216px + var(--env-gap));
+    left: var(--safe-area-left);
+    transform: none;
     z-index:31;
     font-size:72px;
     line-height:1;
@@ -84,7 +87,7 @@
   .stage.grid-2{
     display:grid;
     grid-template-columns: 1fr 1fr;
-    gap: clamp(18px, 3vw, 28px);
+    gap: var(--env-gap); /* CHANGED: use the shared gap variable */
     align-items:center;
     justify-items:center;
     height:100dvh;
@@ -238,13 +241,14 @@
     pointer-events:none;
   }
 
-  /* ================= MOBILE ONLY CHANGES ================= */
-  /* 1) Under 860px: stack vertically, **small gap**, fit viewport height */
+  /* ============== MOBILE (STACKED) ============== */
   @media (max-width: 860px) {
+    /* use same gap value for envelopes and for logo→text spacing */
+    :root { --env-gap: 8px; }
+
     .stage.grid-2{
       grid-template-columns: 1fr;
-      gap: 8px !important;       /* SMALL GAP HERE */
-      row-gap: 8px !important;   /* SMALL GAP HERE */
+      gap: var(--env-gap);
       height: 100dvh;
       min-height: 100dvh;
       padding-top: calc(var(--safe-area-top) + 240px);
@@ -257,7 +261,6 @@
     }
   }
 
-  /* 2) Under 600px: same, slightly narrower for small phones */
   @media (max-width: 600px) {
     .brand-badge {
       position: absolute;
@@ -266,13 +269,14 @@
       transform: translateX(-50%);
       flex-direction: column;
       align-items: center;
-      gap: 2px; /* << ONLY CHANGE: tighten logo–text spacing on mobile */
+      gap: var(--env-gap); /* CHANGED: match envelope gap */
     }
     .brand-badge img {
       width: 180px;
       height: 180px;
       margin: 0 auto;
     }
+    /* wordmark sits just below logo on mobile too (no absolute positioning) */
     .brand-badge .brand-name {
       position: static;
       transform: none;
@@ -284,8 +288,7 @@
 
     .stage.grid-2{
       grid-template-columns: 1fr;
-      gap: 8px !important;       /* SMALL GAP HERE */
-      row-gap: 8px !important;   /* SMALL GAP HERE */
+      gap: var(--env-gap);
       padding-top: calc(var(--safe-area-top) + 240px);
       padding-bottom: 0;
       align-content: start;
@@ -505,9 +508,7 @@ function fillLetterDeals(ev){ dealTitle.textContent=ev.title; dealVenue.textCont
 
 /* === Precompute constant-size front text BEFORE showing the cards === */
 function setFrontTextScaleFor(cardEl){
-  // Current width vs target single-envelope width
   const rect = cardEl.getBoundingClientRect();
-  // If rect is 0 (not laid out yet), temporarily show to measure
   let tempShown = false;
   if (!rect.width){
     cardEl.style.visibility = 'hidden';
@@ -524,22 +525,18 @@ function setFrontTextScaleFor(cardEl){
   }
 }
 
-/* === Slide to center AND grow to original size (front text already counter-scaled), then flip === */
+/* === Slide to center AND grow to original size, then flip === */
 function slideToCenterGrow(cardEl, thenFlip){
-  // position & size
   const rect = cardEl.getBoundingClientRect();
   const elCx = rect.left + rect.width/2;
   const elCy = rect.top  + rect.height/2;
 
-  // viewport center
   const vpCx = window.innerWidth  / 2;
   const vpCy = window.innerHeight / 2;
 
-  // target size
   const targetW = Math.min(window.innerWidth * 0.88, 660);
   const scale   = targetW / rect.width;
 
-  // move to center; scale about the center
   const dx = vpCx - elCx;
   const dy = vpCy - elCy;
 
@@ -551,7 +548,6 @@ function slideToCenterGrow(cardEl, thenFlip){
     if (e.target !== cardEl) return;
     cardEl.removeEventListener('transitionend', onEnd);
 
-    // Freeze exactly where it finished (now at target size & centered)
     const after = cardEl.getBoundingClientRect();
 
     cardEl.style.transition = 'none';
@@ -563,7 +559,6 @@ function slideToCenterGrow(cardEl, thenFlip){
     cardEl.style.height     = `${after.height}px`;
     cardEl.style.zIndex     = '22';
 
-    // Clear counter-scale now that transforms are removed (so final size is correct)
     cardEl.style.removeProperty('--text-comp-scale');
 
     thenFlip();
@@ -573,11 +568,9 @@ function slideToCenterGrow(cardEl, thenFlip){
 
 /* === Reset === */
 function resetAll(){
-  // show both
   cardEvents.classList.remove('is-ghost','is-back','is-open');
   cardDeals.classList.remove('is-ghost','is-back','is-open');
 
-  // clear inline styles used for slide/freeze
   [cardEvents, cardDeals].forEach(el=>{
     el.style.transition = '';
     el.style.transform  = '';
@@ -591,119 +584,7 @@ function resetAll(){
     el.style.removeProperty('--text-comp-scale');
   });
 
-  // Recompute constant-size text for initial state
   setFrontTextScaleFor(cardEvents);
   setFrontTextScaleFor(cardDeals);
 
   document.body.classList.remove('show-reset','is-open');
-}
-
-/* === Progressive load === */
-let loadPromise = null;
-async function ensureLoaded(){
-  if (!loadPromise){
-    loadPromise = (async()=>{ await loadRows(); })().catch(e=>console.error(e));
-  }
-  return loadPromise;
-}
-
-/* Precompute front-text scaling BEFORE first paint of stacks */
-(function early(){
-  // Run ASAP after HTML parsed
-  if (document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', () => {
-      setFrontTextScaleFor(cardEvents);
-      setFrontTextScaleFor(cardDeals);
-      document.body.classList.remove('precompute');
-    });
-  } else {
-    setFrontTextScaleFor(cardEvents);
-    setFrontTextScaleFor(cardDeals);
-    document.body.classList.remove('precompute');
-  }
-})();
-
-window.addEventListener('load', ()=>{ ensureLoaded().catch(()=>{}); });
-
-/* === Click flows === */
-async function startEvents(){
-  if (isAnimating) return; isAnimating = true;
-
-  // Hide the other envelope immediately
-  cardDeals.classList.add('is-ghost');
-  document.body.classList.add('is-open','show-reset');
-
-  // Quick fill if available
-  if (events && events.length){ fillLetter(pickOne(events)); }
-  else { evTitle.textContent='Loading…'; evVenue.textContent=''; evLink.removeAttribute('href'); }
-
-  slideToCenterGrow(cardEvents, ()=>{
-    // flip + open (unchanged)
-    cardEvents.classList.add('is-back');
-    setTimeout(()=>{ cardEvents.classList.add('is-open'); }, 20);
-    setTimeout(()=>{ openSfx.currentTime=0; openSfx.play().catch(()=>{}); },260);
-    setTimeout(()=>{ isAnimating=false; }, 1000);
-  });
-
-  if (!events || !events.length){
-    try { await ensureLoaded(); fillLetter(pickOne(events)); } catch(e){}
-  }
-}
-
-async function startDeals(){
-  if (isAnimating) return; isAnimating = true;
-
-  cardEvents.classList.add('is-ghost');
-  document.body.classList.add('is-open','show-reset');
-
-  if (deals && deals.length){ fillLetterDeals(pickOne(deals)); }
-  else { dealTitle.textContent='Loading…'; dealVenue.textContent=''; dealLink.removeAttribute('href'); }
-
-  slideToCenterGrow(cardDeals, ()=>{
-    cardDeals.classList.add('is-back');
-    setTimeout(()=>{ cardDeals.classList.add('is-open'); }, 20);
-    setTimeout(()=>{ openSfx.currentTime=0; openSfx.play().catch(()=>{}); },260);
-    setTimeout(()=>{ isAnimating=false; }, 1000);
-  });
-
-  if (!deals || !deals.length){
-    try { await ensureLoaded(); fillLetterDeals(pickOne(deals)); } catch(e){}
-  }
-}
-
-/* === Bindings === */
-clickOverlay.addEventListener('click', startEvents);
-clickOverlayDeals.addEventListener('click', startDeals);
-
-letter.addEventListener('click', ()=>{ if(!cardEvents.classList.contains('is-open')) startEvents(); });
-letterD.addEventListener('click',   ()=>{ if(!cardDeals.classList.contains('is-open'))  startDeals();   });
-
-/* === Reset button with title fade-in only AFTER envelopes are back === */
-resetBtn.addEventListener('click', ()=>{ 
-  if(isAnimating) return; 
-  isAnimating = true;
-
-  const body = document.body;
-  const brandName = document.querySelector('.brand-badge .brand-name');
-
-  // Keep title hidden for the whole reset
-  body.classList.add('hold-title');
-  if (brandName) brandName.style.opacity = '0';
-
-  requestAnimationFrame(()=>{
-    body.classList.remove('show-reset','is-open');
-
-    setTimeout(()=>{
-      resetAll(); // envelopes snap back with precomputed text scale
-      // Let layout settle before showing the title
-      setTimeout(()=>{
-        body.classList.remove('hold-title');
-        if (brandName) brandName.style.opacity = '';
-        isAnimating = false;
-      }, 300);
-    }, 300);
-  });
-});
-</script>
-</body>
-</html>
