@@ -31,7 +31,7 @@
     overflow:hidden;
   }
 
-  /* Hide stacks until we’ve precomputed text scale to avoid any size “pop” */
+  /* Hide stacks until we drop the precompute flag */
   body.precompute .stack{ visibility:hidden; }
 
   .brand-badge{
@@ -48,7 +48,6 @@
 
   .brand-badge .brand-name{
     position:fixed;
-    /* logo center (216/2=108) minus half text height (72/2=36) */
     top: calc(var(--safe-area-top) + 108px - 36px);
     left:50%;
     transform: translateX(-50%);
@@ -83,17 +82,17 @@
   /* two-column layout — shrink-wrap columns and center them */
   .stage.grid-2{
     display:grid;
-    grid-template-columns: auto auto;               /* changed from 1fr 1fr */
+    grid-template-columns: auto auto;
     gap: clamp(18px, 3vw, 28px);
     align-items:center;
-    justify-content:center;                         /* center the two columns */
+    justify-content:center;
     height:100dvh;
   }
 
   /* envelope card sizing: grows with viewport, capped at original 660px */
   .stack{
     position:relative;
-    width: clamp(420px, 44vw, 660px);               /* changed from min(44vw, 495px) */
+    width: clamp(420px, 44vw, 660px);
     aspect-ratio:2/1;
     display:grid; place-items:center;
     transition:
@@ -101,8 +100,6 @@
       z-index .2s ease,
       opacity .2s ease,
       visibility .2s ease;
-    /* per-card counter-scale of front text (set by JS before first paint) */
-    --text-comp-scale: 1;
   }
 
   .click-overlay{ position:absolute; inset:0; cursor:pointer; z-index:19; background:transparent; }
@@ -128,11 +125,10 @@
   }
   .env-front{ transform: rotateY(0deg); }
 
-  /* Front label wrapper: counter-scale so text stays constant size */
+  /* Front label wrapper — now scales WITH the envelope (no counter-scale) */
   .env-front .front-text{
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
     transform-origin:center center;
-    transform: scale(var(--text-comp-scale));
   }
 
   .env-front .top-secret{
@@ -239,7 +235,6 @@
   }
 
   /* ================= MOBILE ONLY CHANGES ================= */
-  /* 1) Under 860px: stack vertically, small gap, fit viewport height */
   @media (max-width: 860px) {
     .stage.grid-2{
       grid-template-columns: 1fr;
@@ -258,7 +253,6 @@
     }
   }
 
-  /* 2) Under 600px: ONLY adjust logo–text spacing (smaller) */
   @media (max-width: 600px) {
     .brand-badge {
       position: absolute;
@@ -267,7 +261,7 @@
       transform: translateX(-50%);
       flex-direction: column;
       align-items: center;
-      gap: 0;             /* tighter gap between logo and “Social Burst” */
+      gap: 0;
     }
     .brand-badge img {
       width: 180px;
@@ -281,7 +275,7 @@
       line-height: 1.1;
       text-align: center;
       white-space: nowrap;
-      margin-top: -4px;   /* nudge text up */
+      margin-top: -4px;
     }
 
     .stage.grid-2{
@@ -506,26 +500,7 @@ function pickOne(list){ return list.length ? list[Math.floor(Math.random()*list.
 function fillLetter(ev){ evTitle.textContent=ev.title; evVenue.textContent=ev.venue; evLink.href=ev.url; }
 function fillLetterDeals(ev){ dealTitle.textContent=ev.title; dealVenue.textContent=ev.venue; dealLink.href=ev.url; }
 
-/* === Precompute constant-size front text BEFORE showing the cards === */
-function setFrontTextScaleFor(cardEl){
-  const rect = cardEl.getBoundingClientRect();
-  let tempShown = false;
-  if (!rect.width){
-    cardEl.style.visibility = 'hidden';
-    cardEl.style.display = 'grid';
-    tempShown = true;
-  }
-  const r = cardEl.getBoundingClientRect();
-  const targetW = Math.min(window.innerWidth * 0.88, 660);
-  const scale = targetW / (r.width || 1);
-  cardEl.style.setProperty('--text-comp-scale', (1/scale).toString());
-  if (tempShown){
-    cardEl.style.display = '';
-    cardEl.style.visibility = '';
-  }
-}
-
-/* === Slide to center AND grow to original size, then flip === */
+/* === Slide to center AND grow to target size, then flip === */
 function slideToCenterGrow(cardEl, thenFlip){
   const rect = cardEl.getBoundingClientRect();
   const elCx = rect.left + rect.width/2;
@@ -559,8 +534,6 @@ function slideToCenterGrow(cardEl, thenFlip){
     cardEl.style.height     = `${after.height}px`;
     cardEl.style.zIndex     = '22';
 
-    cardEl.style.removeProperty('--text-comp-scale');
-
     thenFlip();
   }
   cardEl.addEventListener('transitionend', onEnd);
@@ -581,11 +554,7 @@ function resetAll(){
     el.style.height     = '';
     el.style.zIndex     = '';
     el.style.transformOrigin = '';
-    el.style.removeProperty('--text-comp-scale');
   });
-
-  setFrontTextScaleFor(cardEvents);
-  setFrontTextScaleFor(cardDeals);
 
   document.body.classList.remove('show-reset','is-open');
 }
@@ -599,17 +568,13 @@ async function ensureLoaded(){
   return loadPromise;
 }
 
-/* Precompute front-text scaling BEFORE first paint of stacks */
+/* Remove precompute flag once DOM is ready */
 (function early(){
   if (document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', () => {
-      setFrontTextScaleFor(cardEvents);
-      setFrontTextScaleFor(cardDeals);
       document.body.classList.remove('precompute');
     });
   } else {
-    setFrontTextScaleFor(cardEvents);
-    setFrontTextScaleFor(cardDeals);
     document.body.classList.remove('precompute');
   }
 })();
