@@ -43,7 +43,6 @@
     height:216px;
   }
 
-  /* align text center with logo center, and set Social/Burst fonts */
   .brand-badge .brand-name{
     position:fixed;
     top: calc(var(--safe-area-top) + 108px - 36px);
@@ -79,13 +78,13 @@
     height:100dvh;
   }
 
-  /* Shrink each envelope to ~3/4 size so two fit side-by-side */
+  /* ~3/4 width so both fit */
   .stack{
     position:relative;
-    width:min(44vw, 495px); /* was min(88vw, 660px) → ~0.75 */
+    width:min(44vw, 495px);
     aspect-ratio:2/1;
     display:grid; place-items:center;
-    transition: transform .45s ease, grid-column .45s ease, z-index .2s ease, opacity .3s ease, visibility .3s ease;
+    transition: transform .45s ease, grid-column .45s ease, z-index .2s ease, opacity .3s ease, visibility .3s ease, top .45s ease, left .45s ease;
   }
 
   .click-overlay{ position:absolute; inset:0; cursor:pointer; z-index:19; background:transparent; }
@@ -208,9 +207,13 @@
     line-height:1; display:flex; align-items:center; justify-content:center;
   }
 
-  /* Center the opened card (spans both columns) */
+  /* Center the opened card at exact middle of the page */
   .stage.grid-2 .stack.is-open-centered{
-    grid-column: 1 / -1;
+    position: fixed;        /* take it out of the grid flow */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%); /* true center of viewport */
+    grid-column: 1 / -1;    /* harmless while fixed; keeps previous behavior intact */
     z-index: 22;
   }
 
@@ -229,8 +232,14 @@
       min-height:100dvh;
       padding-block: clamp(16px, 5vw, 28px);
     }
-    .stage.grid-2 .stack{ width:min(88vw, 560px); } /* give it a bit more width when stacked */
-    .stage.grid-2 .stack.is-open-centered{ grid-column: 1; }
+    .stage.grid-2 .stack{ width:min(88vw, 560px); }
+    .stage.grid-2 .stack.is-open-centered{
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      grid-column: 1;
+    }
   }
 
   @media (max-width: 600px) {
