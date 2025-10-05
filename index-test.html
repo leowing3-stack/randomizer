@@ -1,4 +1,4 @@
- <!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -80,20 +80,20 @@
     perspective: 1600px;
   }
 
-  /* two-column layout */
+  /* two-column layout — shrink-wrap columns and center them */
   .stage.grid-2{
     display:grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: auto auto;               /* changed from 1fr 1fr */
     gap: clamp(18px, 3vw, 28px);
     align-items:center;
-    justify-items:center;
+    justify-content:center;                         /* center the two columns */
     height:100dvh;
   }
 
-  /* three-quarter width so both fit */
+  /* envelope card sizing: grows with viewport, capped at original 660px */
   .stack{
     position:relative;
-    width:min(44vw, 495px);
+    width: clamp(420px, 44vw, 660px);               /* changed from min(44vw, 495px) */
     aspect-ratio:2/1;
     display:grid; place-items:center;
     transition:
@@ -250,6 +250,7 @@
       padding-top: calc(var(--safe-area-top) + 240px);
       padding-bottom: 0;
       align-content: start;
+      justify-content: center;
     }
     .stage.grid-2 .stack{
       width: min(92vw, 520px);
@@ -266,7 +267,7 @@
       transform: translateX(-50%);
       flex-direction: column;
       align-items: center;
-      gap: 0;             /* <<< SMALLER gap between logo and “Social Burst” */
+      gap: 0;             /* tighter gap between logo and “Social Burst” */
     }
     .brand-badge img {
       width: 180px;
@@ -280,7 +281,7 @@
       line-height: 1.1;
       text-align: center;
       white-space: nowrap;
-      margin-top: -4px;   /* <<< Nudge text UP a touch */
+      margin-top: -4px;   /* nudge text up */
     }
 
     .stage.grid-2{
@@ -290,6 +291,7 @@
       padding-top: calc(var(--safe-area-top) + 240px);
       padding-bottom: 0;
       align-content: start;
+      justify-content: center;
     }
     .stage.grid-2 .stack{
       width: min(88vw, 500px);
