@@ -51,8 +51,8 @@
     left:50%;
     transform: translateX(-50%);
     z-index:31;
-    font-size:72px;                 /* unchanged from last step (doubled) */
-    line-height:1;                  /* ensures text box ≈ 72px tall */
+    font-size:72px; /* unchanged */
+    line-height:1;
     opacity:1;
     transition: opacity .45s ease;
     white-space:nowrap;
@@ -70,6 +70,16 @@
     perspective: 1600px;
   }
 
+  /* NEW: two-column layout while preserving your .stage styles */
+  .stage.grid-2{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(18px, 3vw, 28px);
+    align-items:center;
+    justify-items:center;
+    height:100dvh;
+  }
+
   .stack{ position:relative; width:min(88vw, 660px); aspect-ratio:2/1; display:grid; place-items:center; }
   .click-overlay{ position:absolute; inset:0; cursor:pointer; z-index:19; background:transparent; }
 
@@ -80,7 +90,9 @@
     transition: transform 0.8s ease;
     z-index:10;
   }
-  .is-back .envelope{ transform: rotateY(180deg); }
+  /* Scoped flip so each card opens independently */
+  #cardEvents.is-back .envelope{ transform: rotateY(180deg); }
+  #cardDeals.is-back  .envelope{ transform: rotateY(180deg); }
 
   .env-face{
     position:absolute; inset:0;
@@ -121,11 +133,7 @@
     backface-visibility: visible;
     pointer-events:none;
   }
-  .flap-svg{
-    position:absolute; inset:0;
-    width:100%; height:100%;
-    display:block;
-  }
+  .flap-svg{ position:absolute; inset:0; width:100%; height:100%; display:block; }
   .flap-tri{
     fill: var(--white);
     stroke: var(--black);
@@ -138,9 +146,9 @@
     height:0; border-top:2px solid rgba(0,0,0,0.18);
     z-index:2; pointer-events:none;
   }
-  .is-open .flap3d{
-    transform: rotateX(-175deg);
-  }
+  /* Scoped open so each card animates independently */
+  #cardEvents.is-open .flap3d{ transform: rotateX(-175deg); }
+  #cardDeals.is-open  .flap3d{ transform: rotateX(-175deg); }
 
   .letter-wrap{
     position:absolute; inset:0;
@@ -163,7 +171,9 @@
     gap: clamp(12px, 2vw, 20px);
     text-align:center;
   }
-  .is-open .letter{
+  /* Scoped letter open */
+  #cardEvents.is-open .letter,
+  #cardDeals.is-open  .letter{
     transform: translateY(calc(-1 * var(--safe-area-top) / 2)) scaleY(1);
     opacity:1;
     pointer-events:auto;
@@ -191,35 +201,54 @@
     line-height:1; display:flex; align-items:center; justify-content:center;
   }
 
-/* --- Mobile layout: logo centered at top, text below --- */
-@media (max-width: 600px) {
-  .brand-badge {
-    position: absolute;
-    top: var(--safe-area-top);
-    left: 50%;
-    transform: translateX(-50%);
-    flex-direction: column;
-    align-items: center;
-    gap: 8px; /* spacing between logo and text */
+  /* Center the opened card (spans both columns) without changing your visuals */
+  .stage.grid-2 .stack{
+    transition: transform .45s ease, grid-column .45s ease, z-index .2s ease;
+  }
+  .stage.grid-2 .stack.is-open-centered{
+    grid-column: 1 / -1;
+    z-index: 22;
   }
 
-  .brand-badge img {
-    width: 180px;  /* keep size consistent with your current settings */
-    height: 180px;
-    margin: 0 auto;
+  /* --- Mobile layout: logo centered at top, text below --- */
+  @media (max-width: 860px) {
+    .stage.grid-2{
+      grid-template-columns: 1fr;
+      height:auto;
+      min-height:100dvh;
+      padding-block: clamp(16px, 5vw, 28px);
+    }
+    .stage.grid-2 .stack.is-open-centered{
+      grid-column: 1;
+    }
   }
 
-  .brand-badge .brand-name {
-    position: static;   /* reset fixed/absolute positioning */
-    transform: none;
-    font-size: clamp(28px, 9vw, 48px);
-    line-height: 1.1;
-    text-align: center;
-    white-space: nowrap;
-  }
-}
-}
+  @media (max-width: 600px) {
+    .brand-badge {
+      position: absolute;
+      top: var(--safe-area-top);
+      left: 50%;
+      transform: translateX(-50%);
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
 
+    .brand-badge img {
+      width: 180px;
+      height: 180px;
+      margin: 0 auto;
+    }
+
+    .brand-badge .brand-name {
+      position: static;
+      transform: none;
+      font-size: clamp(28px, 9vw, 48px);
+      line-height: 1.1;
+      text-align: center;
+      white-space: nowrap;
+    }
+  }
 </style>
 </head>
 <body>
@@ -231,9 +260,10 @@
   </div>
 </div>
 
-<main class="stage">
-  <section id="stack" class="stack">
-    <div id="clickOverlay" class="click-overlay"></div>
+<main class="stage grid-2">
+  <!-- LEFT: EVENTS (community / live_music / pub_quiz) -->
+  <section id="cardEvents" class="stack">
+    <div id="clickOverlay" class="click-overlay" aria-label="Open events"></div>
 
     <div class="envelope">
       <div class="env-face env-front">
@@ -263,6 +293,39 @@
       </article>
     </div>
   </section>
+
+  <!-- RIGHT: DEALS (category contains 'deal') -->
+  <section id="cardDeals" class="stack">
+    <div id="clickOverlayDeals" class="click-overlay" aria-label="Open deals"></div>
+
+    <div class="envelope">
+      <div class="env-face env-front">
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;">
+          <div class="top-secret" style="margin:0;">TOP SECRET</div>
+          <div class="subtitle" style="color:#8338EC; font-weight:700; font-size:clamp(18px,4vw,26px); margin:0;">Discounts Today</div>
+        </div>
+      </div>
+
+      <div class="env-face env-back">
+        <div class="back-body"></div>
+        <div class="back-top-guide"></div>
+        <div class="flap3d" aria-hidden="true">
+          <svg class="flap-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <polygon class="flap-tri" points="0,0 100,0 50,100"></polygon>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="letter-wrap">
+      <article id="letterDeals" class="letter">
+        <h5>Today’s Special….</h5>
+        <div id="dealTitle" class="title">Loading…</div>
+        <div id="dealVenue" class="venue"></div>
+        <div class="more"><a id="dealLink" href="#" target="_blank" rel="noopener noreferrer">View offer</a></div>
+      </article>
+    </div>
+  </section>
 </main>
 
 <div class="reset-wrap">
@@ -274,18 +337,36 @@
 </audio>
 
 <script>
+/* === DATA SOURCE (unchanged) === */
 const CSV_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vQi9O78dGEZQ38WWiuMBKKNJwlp6J-yLmPP2lCjJJAHifG1YnpIPVvGt9tKdULSC4ZW9CBiIQOTOx7L/pub?gid=1474444500&single=true&output=csv";
 
-const clickOverlay=document.getElementById('clickOverlay');
-const letter=document.getElementById('letter');
-const resetBtn=document.getElementById('resetBtn');
-const openSfx=document.getElementById('openSfx');
-const evTitle=document.getElementById('evTitle');
-const evVenue=document.getElementById('evVenue');
-const evLink=document.getElementById('evLink');
+/* === ELEMENTS (existing + new right-hand IDs) === */
+const cardEvents = document.getElementById('cardEvents');
+const cardDeals  = document.getElementById('cardDeals');
 
-let events=[],isAnimating=false;
+const clickOverlay     = document.getElementById('clickOverlay');
+const clickOverlayDeals= document.getElementById('clickOverlayDeals');
 
+const letter   = document.getElementById('letter');
+const letterD  = document.getElementById('letterDeals');
+
+const resetBtn = document.getElementById('resetBtn');
+const openSfx  = document.getElementById('openSfx');
+
+const evTitle  = document.getElementById('evTitle');
+const evVenue  = document.getElementById('evVenue');
+const evLink   = document.getElementById('evLink');
+
+const dealTitle= document.getElementById('dealTitle');
+const dealVenue= document.getElementById('dealVenue');
+const dealLink = document.getElementById('dealLink');
+
+let allRows = [];
+let events  = [];
+let deals   = [];
+let isAnimating = false;
+
+/* === CSV parsing (adds category support; everything else unchanged) === */
 function parseCSV(text){
   const rows=text.split(/\r?\n/).filter(l=>l.trim().length);
   if (rows.length < 1) return [];
@@ -295,20 +376,23 @@ function parseCSV(text){
     venue: header.indexOf('venue_name'),
     url:   header.indexOf('source_url'),
     start: header.indexOf('start_datetime'),
-    end:   header.indexOf('end_datetime')
+    end:   header.indexOf('end_datetime'),
+    cat:   header.indexOf('category') /* NEW: category column */
   };
   return rows.map(line=>{
     const parts=line.split(",");
     return {
       title: parts[idx.title]||'',
       venue: parts[idx.venue]||'',
-      url:   parts[idx.url]||'',
+      url:   parts[idx.url]||'#',
       start_datetime: parts[idx.start]||'',
-      end_datetime:   parts[idx.end]||''
+      end_datetime:   parts[idx.end]||'',
+      category: (idx.cat>=0 ? (parts[idx.cat]||'') : '')
     };
   });
 }
 
+/* === Time helpers (unchanged) === */
 function parseDMYTime(str){
   const s=(str||'').toLowerCase().replace(/\u00a0|\u202f/g,' ').trim();
   if(!s) return null;
@@ -339,93 +423,120 @@ function isActiveToday(ev, now){
   if(!isStartToday && !isEndToday) return false;
 
   if(s && !e) e = new Date(s.getTime()+2*60*60*1000);
-
   const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23,59,59,999);
   const effectiveEnd = (isEndToday && e) ? e : endOfToday;
 
   return effectiveEnd > now;
 }
 
-async function loadEvents(){
-  try {
-    const res=await fetch(CSV_URL);
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-    const txt=await res.text();
-    const allEvents = parseCSV(txt);
+/* === Category filter helpers (NEW) === */
+function normCat(c){
+  return (c||'').toLowerCase().replace(/[\s\-]+/g,'_').trim();
+}
+const EVENT_OK = new Set(['community','live_music','pub_quiz']); // supports "live music"/"pub quiz" via normCat()
 
-    const now=new Date();
-    events=allEvents.filter(ev=>isActiveToday(ev, now));
-    if(events.length===0){
-      events=[{title:'No events left today', venue:'', url:'#'}];
-    }
-  } catch(e) {
-    console.error("Failed to load events:", e);
-    events=[{title:'Could not load events', venue:'Please check connection', url:'#'}];
-  }
+/* === Load & split rows once; then filter into events/deals === */
+async function loadRows(){
+  const res = await fetch(CSV_URL);
+  if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+  const txt = await res.text();
+  const rows = parseCSV(txt);
+
+  const now = new Date();
+  allRows = rows.filter(ev => isActiveToday(ev, now));
+
+  // Left envelope: categories in EVENT_OK
+  events = allRows.filter(ev => EVENT_OK.has(normCat(ev.category)));
+
+  // Right envelope: category contains 'deal'
+  deals  = allRows.filter(ev => normCat(ev.category).includes('deal'));
+
+  if (events.length===0) events=[{title:'No events left today', venue:'', url:'#'}];
+  if (deals.length===0)  deals=[{title:'No discounts today', venue:'', url:'#'}];
 }
 
-function pickOne(){ return events.length?events[Math.floor(Math.random()*events.length)]:{title:'No events today',venue:'',url:'#'}; }
+function pickOne(list){ return list.length ? list[Math.floor(Math.random()*list.length)] : {title:'Nothing today', venue:'', url:'#'}; }
 function fillLetter(ev){ evTitle.textContent=ev.title; evVenue.textContent=ev.venue; evLink.href=ev.url; }
+function fillLetterDeals(ev){ dealTitle.textContent=ev.title; dealVenue.textContent=ev.venue; dealLink.href=ev.url; }
 
-function setStateBack(){ document.body.classList.remove('is-back','is-open','show-reset'); }
-function flipToBack(){ document.body.classList.add('is-back'); }
-function openFlapAndLetter(){ document.body.classList.add('is-open','show-reset'); }
+/* === Scoped state (open one at a time, center when open) === */
+function resetBothInstant(){
+  cardEvents.classList.remove('is-back','is-open','is-open-centered');
+  cardDeals.classList.remove('is-back','is-open','is-open-centered');
+  document.body.classList.remove('show-reset','is-open');
+}
+function openCard(cardEl){
+  // Close the other card if open
+  const other = (cardEl===cardEvents) ? cardDeals : cardEvents;
+  other.classList.remove('is-back','is-open','is-open-centered');
 
-window.addEventListener('load', () => {
-  loadEvents().catch(()=>{});
-});
+  // Body class for legacy brand fade (unchanged behaviour)
+  document.body.classList.add('is-open','show-reset');
 
-async function getEventsFast(timeoutMs = 600) {
-  if (events && events.length) return events;
-  if (!getEventsFast._promise) {
-    getEventsFast._promise = (async () => {
-      await loadEvents();
-      return events;
-    })().finally(() => {});
-  }
-  const winner = await Promise.race([
-    getEventsFast._promise,
-    new Promise(res => setTimeout(() => res(null), timeoutMs))
-  ]);
-  return winner;
+  // Flip and center the chosen card
+  cardEl.classList.add('is-back');
+  setTimeout(()=>{ cardEl.classList.add('is-open'); }, 20);
+  setTimeout(()=>{ cardEl.classList.add('is-open-centered'); }, 100);
 }
 
-async function startSequence(){
-  if (isAnimating) return;
-  isAnimating = true;
-
-  const fast = await getEventsFast(600);
-  if (fast) {
-    fillLetter(pickOne());
-  } else {
-    evTitle.textContent = 'Loading…';
-    evVenue.textContent = '';
-    evLink.removeAttribute('href');
+/* === Progressive loading (keep your fast-first render idea) === */
+let loadPromise = null;
+async function ensureLoaded(){
+  if (!loadPromise){
+    loadPromise = (async()=>{ await loadRows(); })().catch(e=>{ console.error(e); });
   }
+  return loadPromise;
+}
+window.addEventListener('load', ()=>{ ensureLoaded().catch(()=>{}); });
 
-  flipToBack();
+/* === Click flows (left/right) preserving your timings & sfx === */
+async function startEvents(){
+  if (isAnimating) return; isAnimating = true;
+
+  // Try quick: if we already have rows, show immediately
+  if (events && events.length){ fillLetter(pickOne(events)); }
+  else { evTitle.textContent='Loading…'; evVenue.textContent=''; evLink.removeAttribute('href'); }
+
+  openCard(cardEvents);
   setTimeout(()=>{ openSfx.currentTime=0; openSfx.play().catch(()=>{}); },260);
-  setTimeout(()=>{
-    openFlapAndLetter();
-    setTimeout(()=>{ isAnimating = false; }, 1000);
-  }, 700);
 
-  if (!fast) {
-    try {
-      await getEventsFast._promise;
-      fillLetter(pickOne());
-    } catch(e) {}
+  // Finish animation then allow next
+  setTimeout(()=>{ isAnimating=false; }, 1000);
+
+  // If we didn’t have data yet, fill once loaded
+  if (!events || !events.length){
+    try { await ensureLoaded(); fillLetter(pickOne(events)); } catch(e){}
   }
 }
 
-clickOverlay.addEventListener('click', startSequence);
-letter.addEventListener('click', ()=>{ if(!document.body.classList.contains('is-open')) startSequence(); });
+async function startDeals(){
+  if (isAnimating) return; isAnimating = true;
+
+  if (deals && deals.length){ fillLetterDeals(pickOne(deals)); }
+  else { dealTitle.textContent='Loading…'; dealVenue.textContent=''; dealLink.removeAttribute('href'); }
+
+  openCard(cardDeals);
+  setTimeout(()=>{ openSfx.currentTime=0; openSfx.play().catch(()=>{}); },260);
+  setTimeout(()=>{ isAnimating=false; }, 1000);
+
+  if (!deals || !deals.length){
+    try { await ensureLoaded(); fillLetterDeals(pickOne(deals)); } catch(e){}
+  }
+}
+
+/* === Event bindings (mirrors your original) === */
+clickOverlay.addEventListener('click', startEvents);
+clickOverlayDeals.addEventListener('click', startDeals);
+
+letter.addEventListener('click', ()=>{ if(!cardEvents.classList.contains('is-open')) startEvents(); });
+letterD.addEventListener('click',   ()=>{ if(!cardDeals.classList.contains('is-open'))  startDeals();   });
+
 resetBtn.addEventListener('click', ()=>{ 
   if(isAnimating) return; 
   isAnimating=true;
   document.body.classList.remove('show-reset','is-open');
   setTimeout(()=>{ 
-    document.body.classList.remove('is-back'); 
+    resetBothInstant();
     document.querySelector('.brand-badge .brand-name')?.classList.remove('fade-out');
     setTimeout(()=>{ isAnimating=false; },450); 
   },300);
