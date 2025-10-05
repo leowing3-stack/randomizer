@@ -31,6 +31,9 @@
     overflow:hidden;
   }
 
+  /* Hide stacks until we’ve precomputed text scale to avoid any size “pop” */
+  body.precompute .stack{ visibility:hidden; }
+
   .brand-badge{
     position:fixed;
     top: var(--safe-area-top);
@@ -98,7 +101,7 @@
       z-index .2s ease,
       opacity .2s ease,
       visibility .2s ease;
-    /* default for per-card counter-scale of front text */
+    /* per-card counter-scale of front text (set by JS before first paint) */
     --text-comp-scale: 1;
   }
 
@@ -125,10 +128,9 @@
   }
   .env-front{ transform: rotateY(0deg); }
 
-  /* The two-line title area on the front of the envelope */
+  /* Front label wrapper: counter-scale so text stays constant size */
   .env-front .front-text{
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
-    /* Counter-scale so the text’s perceived size stays constant while the card scales */
     transform-origin:center center;
     transform: scale(var(--text-comp-scale));
   }
@@ -275,7 +277,7 @@
   }
 </style>
 </head>
-<body>
+<body class="precompute">
 
 <div class="brand-badge">
   <img src="./SocialBurstRandomizer/img/logo-nobg.png?v=2" alt="logo"/>
@@ -476,13 +478,35 @@ async function loadRows(){
   if (deals.length===0)  deals=[{title:'No discounts today', venue:'', url:'#'}];
 }
 
+/* === Pick/fill === */
 function pickOne(list){ return list.length ? list[Math.floor(Math.random()*list.length)] : {title:'Nothing today', venue:'', url:'#'}; }
 function fillLetter(ev){ evTitle.textContent=ev.title; evVenue.textContent=ev.venue; evLink.href=ev.url; }
 function fillLetterDeals(ev){ dealTitle.textContent=ev.title; dealVenue.textContent=ev.venue; dealLink.href=ev.url; }
 
-/* === Slide to center AND grow to original size, with front-text counter-scale, then flip === */
+/* === Precompute constant-size front text BEFORE showing the cards === */
+function setFrontTextScaleFor(cardEl){
+  // Current width vs target single-envelope width
+  const rect = cardEl.getBoundingClientRect();
+  // If rect is 0 (not laid out yet), temporarily show to measure
+  let tempShown = false;
+  if (!rect.width){
+    cardEl.style.visibility = 'hidden';
+    cardEl.style.display = 'grid';
+    tempShown = true;
+  }
+  const r = cardEl.getBoundingClientRect();
+  const targetW = Math.min(window.innerWidth * 0.88, 660);
+  const scale = targetW / (r.width || 1);
+  cardEl.style.setProperty('--text-comp-scale', (1/scale).toString());
+  if (tempShown){
+    cardEl.style.display = '';
+    cardEl.style.visibility = '';
+  }
+}
+
+/* === Slide to center AND grow to original size (front text already counter-scaled), then flip === */
 function slideToCenterGrow(cardEl, thenFlip){
-  // current position & size
+  // position & size
   const rect = cardEl.getBoundingClientRect();
   const elCx = rect.left + rect.width/2;
   const elCy = rect.top  + rect.height/2;
@@ -491,16 +515,13 @@ function slideToCenterGrow(cardEl, thenFlip){
   const vpCx = window.innerWidth  / 2;
   const vpCy = window.innerHeight / 2;
 
-  // original single-envelope width: min(88vw, 660px)
+  // target size
   const targetW = Math.min(window.innerWidth * 0.88, 660);
   const scale   = targetW / rect.width;
 
   // move to center; scale about the center
   const dx = vpCx - elCx;
   const dy = vpCy - elCy;
-
-  // Counter-scale front text so it stays constant while the card scales
-  cardEl.style.setProperty('--text-comp-scale', (1/scale).toString());
 
   cardEl.style.transformOrigin = '50% 50%';
   cardEl.style.transition = 'transform .45s ease';
@@ -522,7 +543,7 @@ function slideToCenterGrow(cardEl, thenFlip){
     cardEl.style.height     = `${after.height}px`;
     cardEl.style.zIndex     = '22';
 
-    // Clear counter-scale (no longer needed once transform is removed)
+    // Clear counter-scale now that transforms are removed (so final size is correct)
     cardEl.style.removeProperty('--text-comp-scale');
 
     thenFlip();
@@ -536,7 +557,7 @@ function resetAll(){
   cardEvents.classList.remove('is-ghost','is-back','is-open');
   cardDeals.classList.remove('is-ghost','is-back','is-open');
 
-  // clear inline styles used for slide/freeze and any text counter-scale
+  // clear inline styles used for slide/freeze
   [cardEvents, cardDeals].forEach(el=>{
     el.style.transition = '';
     el.style.transform  = '';
@@ -550,6 +571,10 @@ function resetAll(){
     el.style.removeProperty('--text-comp-scale');
   });
 
+  // Recompute constant-size text for initial state
+  setFrontTextScaleFor(cardEvents);
+  setFrontTextScaleFor(cardDeals);
+
   document.body.classList.remove('show-reset','is-open');
 }
 
@@ -561,6 +586,23 @@ async function ensureLoaded(){
   }
   return loadPromise;
 }
+
+/* Precompute front-text scaling BEFORE first paint of stacks */
+(function early(){
+  // Run ASAP after HTML parsed
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', () => {
+      setFrontTextScaleFor(cardEvents);
+      setFrontTextScaleFor(cardDeals);
+      document.body.classList.remove('precompute');
+    });
+  } else {
+    setFrontTextScaleFor(cardEvents);
+    setFrontTextScaleFor(cardDeals);
+    document.body.classList.remove('precompute');
+  }
+})();
+
 window.addEventListener('load', ()=>{ ensureLoaded().catch(()=>{}); });
 
 /* === Click flows === */
@@ -632,8 +674,7 @@ resetBtn.addEventListener('click', ()=>{
     body.classList.remove('show-reset','is-open');
 
     setTimeout(()=>{
-      resetAll(); // envelopes snap back
-
+      resetAll(); // envelopes snap back with precomputed text scale
       // Let layout settle before showing the title
       setTimeout(()=>{
         body.classList.remove('hold-title');
